@@ -462,6 +462,24 @@ router.post("/confirm-transaction", authMiddleware, async (req, res, next) => {
       return res.status(400).json({ error: "Transaction data is required" });
     }
 
+    // Deduplication: reject if an identical transaction was saved in the last 30 seconds
+    const thirtySecsAgo = new Date(Date.now() - 30000);
+    const duplicate = await Transaction.findOne({
+      userId,
+      type: transactionData.type,
+      amount: transactionData.amount,
+      createdAt: { $gte: thirtySecsAgo },
+    }).lean();
+
+    if (duplicate) {
+      return res.json({
+        success: true,
+        duplicate: true,
+        message: "Transaction already recorded.",
+        transaction: duplicate,
+      });
+    }
+
     // Build complete transaction data
     const fullTransactionData = {
       userId,
@@ -598,6 +616,23 @@ router.post("/confirm-stock", authMiddleware, async (req, res, next) => {
 
     if (!stockData) {
       return res.status(400).json({ error: "Stock data is required" });
+    }
+
+    // Deduplication: reject if an identical stock movement was saved in the last 30 seconds
+    const thirtySecsAgo = new Date(Date.now() - 30000);
+    const dupMovement = await StockMovement.findOne({
+      userId,
+      quantity: Number(stockData.quantity) || 0,
+      reason: { $regex: /assistant/i },
+      createdAt: { $gte: thirtySecsAgo },
+    }).lean();
+
+    if (dupMovement) {
+      return res.json({
+        success: true,
+        duplicate: true,
+        message: "Stock update already recorded.",
+      });
     }
 
     // Use normalized name for matching

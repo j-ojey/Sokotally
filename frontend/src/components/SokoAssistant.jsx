@@ -15,6 +15,7 @@ const SokoAssistant = () => {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [pendingStock, setPendingStock] = useState(null);
   const [showStockConfirmation, setShowStockConfirmation] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
   const messagesEndRef = useRef(null);
   const prevMessagesCount = useRef(messages.length);
   const mediaRecorderRef = useRef(null);
@@ -229,6 +230,9 @@ const SokoAssistant = () => {
   const sendMessage = async (messageText) => {
     if (!messageText.trim() || isLoading) return;
 
+    // Block new messages while a confirmation is pending
+    if (showConfirmation || showStockConfirmation) return;
+
     const userMessage = {
       id: Date.now(),
       type: "user",
@@ -280,6 +284,8 @@ const SokoAssistant = () => {
 
   // Confirm transaction
   const handleConfirmTransaction = async () => {
+    if (isConfirming) return;
+    setIsConfirming(true);
     try {
       const token = getValidToken();
 
@@ -327,10 +333,13 @@ const SokoAssistant = () => {
     } finally {
       setShowConfirmation(false);
       setPendingTransaction(null);
+      setIsConfirming(false);
     }
   };
 
   const handleConfirmStock = async () => {
+    if (isConfirming) return;
+    setIsConfirming(true);
     try {
       const token = getValidToken();
 
@@ -368,6 +377,7 @@ const SokoAssistant = () => {
     } finally {
       setShowStockConfirmation(false);
       setPendingStock(null);
+      setIsConfirming(false);
     }
   };
 
@@ -962,9 +972,10 @@ const SokoAssistant = () => {
                 </button>
                 <button
                   onClick={handleConfirmTransaction}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all"
+                  disabled={isConfirming}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Yes, Save It
+                  {isConfirming ? 'Saving...' : 'Yes, Save It'}
                 </button>
               </div>
             </div>
@@ -1032,9 +1043,10 @@ const SokoAssistant = () => {
                 </button>
                 <button
                   onClick={handleConfirmStock}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all"
+                  disabled={isConfirming}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Yes, Save It
+                  {isConfirming ? 'Saving...' : 'Yes, Save It'}
                 </button>
               </div>
             </div>
