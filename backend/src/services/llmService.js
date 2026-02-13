@@ -149,7 +149,9 @@ async function getGroqResponse(userMessage, systemPrompt, conversationHistory) {
   } catch (error) {
     // If rate limited on primary model, try fallback
     if (error.status === 429 && primaryModel !== fallbackModel) {
-      console.log(`Rate limited on ${primaryModel}, trying ${fallbackModel}...`);
+      console.log(
+        `Rate limited on ${primaryModel}, trying ${fallbackModel}...`,
+      );
       const completion = await groq.chat.completions.create({
         model: fallbackModel,
         messages,

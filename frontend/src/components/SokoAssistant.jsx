@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { getValidToken } from "../storage/auth";
 import { API_BASE } from "../config/api";
 
@@ -8,6 +8,7 @@ const SokoAssistant = () => {
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [speakingMessageId, setSpeakingMessageId] = useState(null);
 
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [pendingTransaction, setPendingTransaction] = useState(null);
@@ -22,6 +23,52 @@ const SokoAssistant = () => {
   const recognitionRef = useRef(null);
   const interimTranscriptRef = useRef("");
   const silenceTimerRef = useRef(null);
+
+  // --- TTS (Google Web Speech Synthesis) ---
+  const handleSpeak = useCallback(
+    (text, messageId) => {
+      if (!window.speechSynthesis) return;
+
+      // If already speaking this message, stop it
+      if (speakingMessageId === messageId) {
+        window.speechSynthesis.cancel();
+        setSpeakingMessageId(null);
+        return;
+      }
+
+      // Stop any ongoing speech
+      window.speechSynthesis.cancel();
+
+      // Detect language: if text has Swahili-common words, use sw-KE
+      const swahiliPattern =
+        /\b(habari|asante|karibu|ndio|hapana|sawa|duka|bidhaa|bei|shilingi|ksh|umeuz|umenunua|nimekuelewa|safi|poa|basi|kwa|na|ya|wa|ni|la|au)\b/i;
+      const lang = swahiliPattern.test(text) ? "sw-KE" : "en-US";
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = lang;
+      utterance.rate = 0.95;
+      utterance.pitch = 1;
+
+      // Try to pick a good voice for the language
+      const voices = window.speechSynthesis.getVoices();
+      const match = voices.find((v) => v.lang.startsWith(lang.split("-")[0]));
+      if (match) utterance.voice = match;
+
+      utterance.onend = () => setSpeakingMessageId(null);
+      utterance.onerror = () => setSpeakingMessageId(null);
+
+      setSpeakingMessageId(messageId);
+      window.speechSynthesis.speak(utterance);
+    },
+    [speakingMessageId],
+  );
+
+  // Cleanup TTS on unmount
+  useEffect(() => {
+    return () => {
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+    };
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -612,9 +659,65 @@ const SokoAssistant = () => {
                             <div className="text-sm md:text-base text-gray-900 dark:text-slate-100 whitespace-pre-wrap leading-relaxed">
                               {formatMessageContent(message.content)}
                             </div>
-                            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2">
-                              {formatTimestamp(message.timestamp)}
-                            </p>
+                            <div className="flex items-center justify-between mt-2">
+                              <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                                {formatTimestamp(message.timestamp)}
+                              </p>
+                              <button
+                                onClick={() =>
+                                  handleSpeak(message.content, message.id)
+                                }
+                                className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+                                title={
+                                  speakingMessageId === message.id
+                                    ? "Stop"
+                                    : "Listen"
+                                }
+                              >
+                                {speakingMessageId === message.id ? (
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="14"
+                                    height="14"
+                                    viewBox="0 0 24 24"
+                                    fill="currentColor"
+                                    className="text-blue-500"
+                                  >
+                                    <rect
+                                      x="6"
+                                      y="5"
+                                      width="4"
+                                      height="14"
+                                      rx="1"
+                                    />
+                                    <rect
+                                      x="14"
+                                      y="5"
+                                      width="4"
+                                      height="14"
+                                      rx="1"
+                                    />
+                                  </svg>
+                                ) : (
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="14"
+                                    height="14"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                                  >
+                                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                                  </svg>
+                                )}
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
