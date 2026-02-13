@@ -304,20 +304,16 @@ Use this data to provide accurate, helpful answers about the business performanc
       .limit(4)
       .lean();
 
-    // Use compact conversational prompt to save tokens
     // Detect user language for prompt reinforcement
     const swahiliWords =
       /\b(habari|asante|karibu|ndio|hapana|sawa|nimeuza|niliuza|nilinunua|nimenunua|nunua|uza|deni|mkopo|gharama|matumizi|lipa|nimelipa|bei|shilingi|ksh|duka|bidhaa|mauzo|faida|nadai|anadai|wadeni|nililipia|stoki|nimepata)\b/i;
     const userSpeaksSwahili = swahiliWords.test(userMessage);
+    const detectedLanguage = userSpeaksSwahili ? "Swahili" : "English";
 
     const conversationalPrompt = `You are SokoTally, a friendly AI assistant for small shop owners in Kenya.
 
-LANGUAGE RULE (MUST follow — this is the #1 priority):
-- ALWAYS respond in the EXACT same language the user writes in
-- If they write in Swahili, reply ENTIRELY in Swahili
-- If they write in English, reply ENTIRELY in English
-- If they mix languages, match their mixing style
-- NEVER switch languages unless the user does first
+CRITICAL LANGUAGE RULE (TOP PRIORITY - MUST FOLLOW):
+The user's current message is in ${detectedLanguage}. You MUST respond ENTIRELY in ${detectedLanguage}. DO NOT use any other language.
 
 RULES:
 - Be brief, friendly, conversational
@@ -326,7 +322,7 @@ RULES:
 - When asked about business data, use the real numbers below
 - Keep responses under 3 sentences for simple messages
 - ONLY discuss business-related topics: sales, inventory, expenses, debts, stock, reports, analytics, customers, suppliers
-- If asked about non-business topics (sports, politics, entertainment, personal advice, etc.), politely decline and redirect: "I'm here to help with your business. How can I assist with your shop today?" (or in Swahili: "Niko hapa kusaidia na biashara yako. Nawezaje kukusaidia na duka lako leo?")${businessContext}`;
+- If asked about non-business topics, politely decline and redirect to business assistance${businessContext}`;
 
     const llmStartTime = Date.now();
     const llmResult = await getLLMResponse(
@@ -894,15 +890,12 @@ router.post(
       const swWordsV =
         /\b(habari|asante|karibu|ndio|hapana|sawa|nimeuza|niliuza|nilinunua|nimenunua|nunua|uza|deni|mkopo|gharama|matumizi|lipa|nimelipa|bei|shilingi|ksh|duka|bidhaa|mauzo|faida|nadai|anadai|wadeni|nililipia|stoki|nimepata)\b/i;
       const userSpeaksSwV = swWordsV.test(transcribedText);
+      const detectedLanguage = userSpeaksSwV ? "Swahili" : "English";
 
       const conversationalPrompt = `You are SokoTally, a friendly AI assistant for small shop owners in Kenya.
 
-LANGUAGE RULE (MUST follow — this is the #1 priority):
-- ALWAYS respond in the EXACT same language the user speaks
-- If they speak in Swahili, reply ENTIRELY in Swahili
-- If they speak in English, reply ENTIRELY in English
-- If they mix languages, match their mixing style
-- NEVER switch languages unless the user does first
+CRITICAL LANGUAGE RULE (TOP PRIORITY - MUST FOLLOW):
+The user's current message is in ${detectedLanguage}. You MUST respond ENTIRELY in ${detectedLanguage}. DO NOT use any other language.
 
 RULES:
 - Be brief, friendly, conversational
@@ -910,7 +903,7 @@ RULES:
 - Do NOT list past transactions unless specifically asked
 - Keep responses under 3 sentences for simple messages
 - ONLY discuss business-related topics: sales, inventory, expenses, debts, stock, reports, analytics, customers, suppliers
-- If asked about non-business topics (sports, politics, entertainment, personal advice, etc.), politely decline and redirect: "I'm here to help with your business. How can I assist with your shop today?" (or in Swahili: "Niko hapa kusaidia na biashara yako. Nawezaje kukusaidia na duka lako leo?")`;
+- If asked about non-business topics, politely decline and redirect to business assistance`;
 
       const llmResult = await getLLMResponse(
         transcribedText,
