@@ -16,6 +16,7 @@ import Welcome from "./pages/Welcome";
 import SignUp from "./pages/SignUp";
 import SignIn from "./pages/SignIn";
 import ResetPassword from "./pages/ResetPassword";
+import TermsAndConditions from "./pages/TermsAndConditions";
 import Profile from "./pages/Profile";
 import AdminLayout from "./components/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -50,6 +51,7 @@ function App() {
             <Route path="/signup" element={<SignUp />} />
             <Route path="/signin" element={<SignIn />} />
             <Route path="/reset" element={<ResetPassword />} />
+            <Route path="/terms" element={<TermsAndConditions />} />
             <Route
               path="/dashboard"
               element={

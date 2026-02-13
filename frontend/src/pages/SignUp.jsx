@@ -323,7 +323,14 @@ const SignUp = () => {
             htmlFor="terms-checkbox"
             className="text-sm font-light text-gray-600 dark:text-slate-300 cursor-pointer leading-relaxed"
           >
-            I agree to the Terms of Service and Privacy Policy
+            I agree to the{" "}
+            <Link
+              to="/terms"
+              target="_blank"
+              className="text-blue-600 dark:text-blue-400 font-medium hover:underline"
+            >
+              Terms of Service and Privacy Policy
+            </Link>
           </label>
         </div>
         {validationErrors.terms && (
