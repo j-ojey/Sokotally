@@ -5,7 +5,7 @@
 export async function getLLMResponse(
   userMessage,
   systemPrompt,
-  conversationHistory = []
+  conversationHistory = [],
 ) {
   const provider = process.env.LLM_PROVIDER || "placeholder";
 
@@ -15,25 +15,25 @@ export async function getLLMResponse(
         return await getOpenAIResponse(
           userMessage,
           systemPrompt,
-          conversationHistory
+          conversationHistory,
         );
       case "anthropic":
         return await getAnthropicResponse(
           userMessage,
           systemPrompt,
-          conversationHistory
+          conversationHistory,
         );
       case "groq":
         return await getGroqResponse(
           userMessage,
           systemPrompt,
-          conversationHistory
+          conversationHistory,
         );
       case "ollama":
         return await getOllamaResponse(
           userMessage,
           systemPrompt,
-          conversationHistory
+          conversationHistory,
         );
       default:
         return getPlaceholderResponse(userMessage);
@@ -52,7 +52,7 @@ export async function getLLMResponse(
 async function getOpenAIResponse(
   userMessage,
   systemPrompt,
-  conversationHistory
+  conversationHistory,
 ) {
   const { default: OpenAI } = await import("openai");
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -85,7 +85,7 @@ async function getOpenAIResponse(
 async function getAnthropicResponse(
   userMessage,
   systemPrompt,
-  conversationHistory
+  conversationHistory,
 ) {
   const { default: Anthropic } = await import("@anthropic-ai/sdk");
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -119,7 +119,9 @@ async function getGroqResponse(userMessage, systemPrompt, conversationHistory) {
 
   const messages = [{ role: "system", content: systemPrompt }];
 
-  conversationHistory.forEach((msg) => {
+  // Limit conversation history to save tokens
+  const recentHistory = conversationHistory.slice(-5);
+  recentHistory.forEach((msg) => {
     messages.push({
       role: msg.sender === "user" ? "user" : "assistant",
       content: msg.message,
@@ -128,24 +130,46 @@ async function getGroqResponse(userMessage, systemPrompt, conversationHistory) {
 
   messages.push({ role: "user", content: userMessage });
 
-  const completion = await groq.chat.completions.create({
-    model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
-    messages,
-    temperature: 0.7,
-    max_tokens: 500,
-  });
+  const primaryModel = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
+  const fallbackModel = "llama-3.1-8b-instant";
 
-  return {
-    reply: completion.choices[0].message.content,
-    model: completion.model,
-    tokensUsed: completion.usage.total_tokens,
-  };
+  try {
+    const completion = await groq.chat.completions.create({
+      model: primaryModel,
+      messages,
+      temperature: 0.7,
+      max_tokens: 300,
+    });
+
+    return {
+      reply: completion.choices[0].message.content,
+      model: completion.model,
+      tokensUsed: completion.usage.total_tokens,
+    };
+  } catch (error) {
+    // If rate limited on primary model, try fallback
+    if (error.status === 429 && primaryModel !== fallbackModel) {
+      console.log(`Rate limited on ${primaryModel}, trying ${fallbackModel}...`);
+      const completion = await groq.chat.completions.create({
+        model: fallbackModel,
+        messages,
+        temperature: 0.7,
+        max_tokens: 200,
+      });
+      return {
+        reply: completion.choices[0].message.content,
+        model: completion.model,
+        tokensUsed: completion.usage.total_tokens,
+      };
+    }
+    throw error;
+  }
 }
 
 async function getOllamaResponse(
   userMessage,
   systemPrompt,
-  conversationHistory
+  conversationHistory,
 ) {
   const ollamaUrl = process.env.OLLAMA_URL || "http://localhost:11434";
   const model = process.env.OLLAMA_MODEL || "llama2";
@@ -174,7 +198,7 @@ async function getOllamaResponse(
 
 function getPlaceholderResponse(userMessage) {
   throw new Error(
-    'LLM_PROVIDER not configured. Please set LLM_PROVIDER environment variable to "openai", "anthropic", "groq", or "ollama" and configure the corresponding API key.'
+    'LLM_PROVIDER not configured. Please set LLM_PROVIDER environment variable to "openai", "anthropic", "groq", or "ollama" and configure the corresponding API key.',
   );
 }
 
@@ -248,7 +272,7 @@ export async function transcribeAudio(audioPath) {
       result = { text: transcription.text };
     } else {
       throw new Error(
-        "Transcription requires either GROQ_API_KEY or OPENAI_API_KEY configuration"
+        "Transcription requires either GROQ_API_KEY or OPENAI_API_KEY configuration",
       );
     }
 
@@ -293,11 +317,11 @@ export async function synthesizeSpeech(text, voice = "alloy") {
     } else if (provider === "groq" && process.env.GROQ_API_KEY) {
       // Groq doesn't have native TTS yet, fallback to client-side or return error
       throw new Error(
-        "Groq TTS not yet available. Use client-side TTS or configure OpenAI."
+        "Groq TTS not yet available. Use client-side TTS or configure OpenAI.",
       );
     } else {
       throw new Error(
-        "TTS requires OPENAI_API_KEY configuration. Set TTS_PROVIDER=openai"
+        "TTS requires OPENAI_API_KEY configuration. Set TTS_PROVIDER=openai",
       );
     }
   } catch (error) {
