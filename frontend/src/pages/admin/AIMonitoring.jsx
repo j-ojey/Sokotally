@@ -21,9 +21,12 @@ const AIMonitoring = () => {
         fetch(`${API_BASE}/api/admin/ai/stats?timeRange=${timeRange}`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch(`${API_BASE}/api/admin/ai/by-user?limit=10`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+        fetch(
+          `${API_BASE}/api/admin/ai/by-user?limit=10&timeRange=${timeRange}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        ),
       ]);
 
       if (statsRes.ok) {

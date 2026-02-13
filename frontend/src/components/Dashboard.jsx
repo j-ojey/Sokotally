@@ -68,6 +68,7 @@ const Dashboard = () => {
 
   const recent = data?.recentTransactions?.slice(0, 8) || [];
   const topItems = data?.topItems?.slice(0, 5) || [];
+  const leastItems = data?.leastItems?.slice(0, 5) || [];
 
   const now = new Date();
   const currentDate = now.toLocaleDateString("en-US", {
@@ -193,20 +194,20 @@ const Dashboard = () => {
             </div>
 
             {/* Two Column Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
               {/* Recent Transactions - Takes 2 columns */}
               <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden">
-                <div className="px-6 py-5 border-b border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/50 flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                <div className="px-5 py-3 border-b border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/50 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
                     Recent Activity
                   </h2>
                   <Link
                     to="/record"
-                    className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white flex items-center gap-1"
+                    className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white flex items-center gap-1"
                   >
                     View All
                     <svg
-                      className="w-4 h-4"
+                      className="w-3.5 h-3.5"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -220,12 +221,12 @@ const Dashboard = () => {
                     </svg>
                   </Link>
                 </div>
-                <div className="p-6">
+                <div className="p-4">
                   {recent.length === 0 ? (
-                    <div className="text-center py-12">
-                      <div className="w-16 h-16 bg-gray-100 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <div className="text-center py-8">
+                      <div className="w-12 h-12 bg-gray-100 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-3">
                         <svg
-                          className="w-8 h-8 text-gray-400"
+                          className="w-6 h-6 text-gray-400"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -238,75 +239,68 @@ const Dashboard = () => {
                           />
                         </svg>
                       </div>
-                      <p className="text-gray-500 dark:text-gray-400 font-medium">
+                      <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">
                         No transactions yet
-                      </p>
-                      <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
-                        Start recording your business activities
                       </p>
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="divide-y divide-gray-100 dark:divide-slate-800">
                       {recent.map((t, i) => (
                         <div
                           key={i}
-                          className="flex items-center justify-between p-4 rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 transition"
+                          className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0"
                         >
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <div
-                                className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                                  t.type === "income"
-                                    ? "bg-green-100 dark:bg-green-900/30"
-                                    : "bg-red-100 dark:bg-red-900/30"
-                                }`}
-                              >
-                                {t.type === "income" ? (
-                                  <svg
-                                    className="w-5 h-5 text-green-600 dark:text-green-400"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M12 4v16m8-8H4"
-                                    />
-                                  </svg>
-                                ) : (
-                                  <svg
-                                    className="w-5 h-5 text-red-600 dark:text-red-400"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M20 12H4"
-                                    />
-                                  </svg>
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-gray-900 dark:text-white truncate">
-                                  {t.items
-                                    ?.map((item) => item.name)
-                                    .join(", ") ||
-                                    t.notes ||
-                                    (t.type === "debt" ? "Loan" : t.type)}
-                                </p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                  {new Date(t.occurredAt).toLocaleDateString()}
-                                </p>
-                              </div>
+                          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                            <div
+                              className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${
+                                t.type === "income"
+                                  ? "bg-green-100 dark:bg-green-900/30"
+                                  : "bg-red-100 dark:bg-red-900/30"
+                              }`}
+                            >
+                              {t.type === "income" ? (
+                                <svg
+                                  className="w-3.5 h-3.5 text-green-600 dark:text-green-400"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M12 4v16m8-8H4"
+                                  />
+                                </svg>
+                              ) : (
+                                <svg
+                                  className="w-3.5 h-3.5 text-red-600 dark:text-red-400"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M20 12H4"
+                                  />
+                                </svg>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                {t.items?.map((item) => item.name).join(", ") ||
+                                  t.notes ||
+                                  (t.type === "debt" ? "Loan" : t.type)}
+                              </p>
+                              <p className="text-xs text-gray-400 dark:text-gray-500">
+                                {new Date(t.occurredAt).toLocaleDateString()}
+                              </p>
                             </div>
                           </div>
                           <span
-                            className={`text-lg font-bold ml-4 ${
+                            className={`text-sm font-semibold ml-3 ${
                               t.type === "income"
                                 ? "text-green-600 dark:text-green-400"
                                 : "text-red-600 dark:text-red-400"
@@ -322,63 +316,104 @@ const Dashboard = () => {
                 </div>
               </div>
 
-              {/* Top Selling Items */}
-              <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden">
-                <div className="px-6 py-5 border-b border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/50">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    Top Products
-                  </h2>
-                </div>
-                <div className="p-6">
-                  {!topItems || topItems.length === 0 ? (
-                    <div className="text-center py-16">
-                      <div className="w-16 h-16 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg
-                          className="w-8 h-8 text-gray-500 dark:text-gray-400"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                          />
-                        </svg>
-                      </div>
-                      <p className="text-gray-500 dark:text-gray-400 font-medium">
-                        No sales data yet
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {topItems.map((item, i) => (
-                        <div
-                          key={i}
-                          className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-slate-800 last:border-0 last:pb-0 hover:bg-gray-50 dark:hover:bg-slate-800/30 p-2 rounded-lg transition-colors -mx-2"
-                        >
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div className="w-8 h-8 bg-blue-600 dark:bg-blue-500 rounded-lg flex items-center justify-center text-white text-sm font-semibold shadow-sm">
-                              {i + 1}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-gray-900 dark:text-white truncate">
-                                {item.name}
-                              </p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                {item.quantity} units sold
-                              </p>
-                            </div>
-                          </div>
-                          <span className="text-sm font-semibold text-green-600 dark:text-green-400 ml-3">
-                            KSh {item.revenue?.toLocaleString() || 0}
-                          </span>
+              {/* Top & Least Selling Items - stacked in same column */}
+              <div className="space-y-6">
+                {/* Top Selling Items */}
+                <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden">
+                  <div className="px-6 py-5 border-b border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/50">
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                      Top Products
+                    </h2>
+                  </div>
+                  <div className="p-6">
+                    {!topItems || topItems.length === 0 ? (
+                      <div className="text-center py-16">
+                        <div className="w-16 h-16 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <svg
+                            className="w-8 h-8 text-gray-500 dark:text-gray-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                            />
+                          </svg>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                        <p className="text-gray-500 dark:text-gray-400 font-medium">
+                          No sales data yet
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {topItems.map((item, i) => (
+                          <div
+                            key={i}
+                            className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-slate-800 last:border-0 last:pb-0 hover:bg-gray-50 dark:hover:bg-slate-800/30 p-2 rounded-lg transition-colors -mx-2"
+                          >
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <div className="w-8 h-8 bg-blue-600 dark:bg-blue-500 rounded-lg flex items-center justify-center text-white text-sm font-semibold shadow-sm">
+                                {i + 1}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-gray-900 dark:text-white truncate">
+                                  {item.name}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                  {item.quantity} units sold
+                                </p>
+                              </div>
+                            </div>
+                            <span className="text-sm font-semibold text-green-600 dark:text-green-400 ml-3">
+                              KSh {item.revenue?.toLocaleString() || 0}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
+
+                {/* Least Selling Items */}
+                {leastItems.length > 0 && (
+                  <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden">
+                    <div className="px-6 py-5 border-b border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/50">
+                      <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                        Least Selling Products
+                      </h2>
+                    </div>
+                    <div className="p-6">
+                      <div className="space-y-4">
+                        {leastItems.map((item, i) => (
+                          <div
+                            key={i}
+                            className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-slate-800 last:border-0 last:pb-0 hover:bg-gray-50 dark:hover:bg-slate-800/30 p-2 rounded-lg transition-colors -mx-2"
+                          >
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <div className="w-8 h-8 bg-orange-500 dark:bg-orange-600 rounded-lg flex items-center justify-center text-white text-sm font-semibold shadow-sm">
+                                {i + 1}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-gray-900 dark:text-white truncate">
+                                  {item.name}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                  {item.quantity} units sold
+                                </p>
+                              </div>
+                            </div>
+                            <span className="text-sm font-semibold text-orange-600 dark:text-orange-400 ml-3">
+                              KSh {item.revenue?.toLocaleString() || 0}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

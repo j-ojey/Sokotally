@@ -34,7 +34,7 @@ export async function extractStockData(userMessage) {
  * Build stock extraction prompt for both English and Swahili
  */
 function buildStockExtractionPrompt() {
-  return `You are an intelligent stock/inventory extractor for a small business in Kenya. Extract inventory data from natural language in ANY language (English or Swahili).
+  return `You are an intelligent stock/inventory extractor for SokoTally, a small business app in Kenya. Extract inventory data from natural language in ANY language (English or Swahili).
 
 Return ONLY valid JSON - no explanations, no markdown.
 
@@ -57,7 +57,7 @@ RULES:
 3. "Update/Change/Badilisha" = update_stock
 4. "How much/What stock/Nina stock gani" = query_stock
 5. Common units: kg (kilos), pieces (vipande), bundles (vishada), bags (magunia)
-6. Prices can be "kwa" (per) or total: "50kg kwa 30 bob kila kilo" = per_unit, "50kg kwa 1500" = total
+6. PRICING: "at/for X each/per/kila" = per_unit, "for/kwa X" (no each/per/kila) = total
 7. Auto-suggest selling price with 20-30% markup if not specified
 
 EXAMPLES:
@@ -65,8 +65,14 @@ EXAMPLES:
 "I bought 30kg of tomatoes at 40 shillings per kg from John"
 → {"actionType":"add_stock","itemName":"tomatoes","quantity":30,"unit":"kg","buyingPrice":40,"priceType":"per_unit","sellingPrice":null,"supplierName":"John","reorderLevel":null,"notes":null,"confidence":0.95}
 
+"I bought 30kg of tomatoes for 1200 shillings"
+→ {"actionType":"add_stock","itemName":"tomatoes","quantity":30,"unit":"kg","buyingPrice":1200,"priceType":"total","sellingPrice":null,"supplierName":null,"reorderLevel":null,"notes":null,"confidence":0.95}
+
 "Nimepata karoti 50kg kwa 2000 bob"
 → {"actionType":"add_stock","itemName":"carrots","quantity":50,"unit":"kg","buyingPrice":2000,"priceType":"total","sellingPrice":null,"supplierName":null,"reorderLevel":null,"notes":null,"confidence":0.9}
+
+"Nimepata karoti 50kg kwa 40 bob kila kilo"
+→ {"actionType":"add_stock","itemName":"carrots","quantity":50,"unit":"kg","buyingPrice":40,"priceType":"per_unit","sellingPrice":null,"supplierName":null,"reorderLevel":null,"notes":null,"confidence":0.95}
 
 "Add 100 pieces of cabbage, bought at 10 per piece, sell at 15"
 → {"actionType":"add_stock","itemName":"cabbage","quantity":100,"unit":"pieces","buyingPrice":10,"priceType":"per_unit","sellingPrice":15,"supplierName":null,"reorderLevel":null,"notes":null,"confidence":0.95}

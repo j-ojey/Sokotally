@@ -139,7 +139,9 @@ const Report = () => {
       try {
         let url = `${API_BASE}/api/transactions?limit=${ITEMS_PER_PAGE}&page=${page}`;
         if (period === "month" && selectedMonth) {
-          url += `&startDate=${selectedMonth}-01`;
+          const [y, m] = selectedMonth.split("-");
+          const lastDay = new Date(parseInt(y), parseInt(m), 0).getDate();
+          url += `&from=${selectedMonth}-01&to=${selectedMonth}-${lastDay}`;
         }
 
         const res = await fetch(url, {
@@ -270,7 +272,9 @@ const Report = () => {
       if (type === "csv") {
         url += "export";
         if (selectedMonth && period === "month") {
-          url += `?startDate=${selectedMonth}-01`;
+          const [y, m] = selectedMonth.split("-");
+          const lastDay = new Date(parseInt(y), parseInt(m), 0).getDate();
+          url += `?from=${selectedMonth}-01&to=${selectedMonth}-${lastDay}`;
         }
         filename += `-${
           selectedMonth || new Date().toISOString().split("T")[0]
@@ -278,7 +282,9 @@ const Report = () => {
       } else if (type === "ai") {
         url += "reports/ai?format=pdf&download=1";
         if (selectedMonth && period === "month") {
-          url += `&month=${selectedMonth}`;
+          const [y, m] = selectedMonth.split("-");
+          const lastDay = new Date(parseInt(y), parseInt(m), 0).getDate();
+          url += `&startDate=${selectedMonth}-01&endDate=${selectedMonth}-${lastDay}`;
         }
         filename += `-ai-${
           selectedMonth || new Date().toISOString().split("T")[0]

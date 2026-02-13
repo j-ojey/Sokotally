@@ -16,6 +16,10 @@ const SokoAssistant = () => {
   const [pendingStock, setPendingStock] = useState(null);
   const [showStockConfirmation, setShowStockConfirmation] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [isEditingTransaction, setIsEditingTransaction] = useState(false);
+  const [editedTransaction, setEditedTransaction] = useState(null);
+  const [isEditingStock, setIsEditingStock] = useState(false);
+  const [editedStock, setEditedStock] = useState(null);
   const messagesEndRef = useRef(null);
   const prevMessagesCount = useRef(messages.length);
   const mediaRecorderRef = useRef(null);
@@ -282,6 +286,46 @@ const SokoAssistant = () => {
     }
   };
 
+  // Enable edit mode
+  const handleEditTransaction = () => {
+    setEditedTransaction({ ...pendingTransaction });
+    setIsEditingTransaction(true);
+  };
+
+  // Update edited transaction field
+  const updateEditedField = (field, value) => {
+    setEditedTransaction((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // Update edited item
+  const updateEditedItem = (index, field, value) => {
+    setEditedTransaction((prev) => {
+      const items = [...prev.items];
+      items[index] = { ...items[index], [field]: parseFloat(value) || 0 };
+      // Recalculate totalPrice if quantity or unitPrice changes
+      if (field === "quantity" || field === "unitPrice") {
+        items[index].totalPrice =
+          items[index].quantity * items[index].unitPrice;
+      }
+      // Recalculate total amount
+      const newAmount = items.reduce((sum, item) => sum + item.totalPrice, 0);
+      return { ...prev, items, amount: newAmount };
+    });
+  };
+
+  // Save edited changes
+  const handleSaveEdit = () => {
+    setPendingTransaction(editedTransaction);
+    setIsEditingTransaction(false);
+    setEditedTransaction(null);
+  };
+
+  // Cancel edit
+  const handleCancelEdit = () => {
+    setIsEditingTransaction(false);
+    setEditedTransaction(null);
+  };
+
   // Confirm transaction
   const handleConfirmTransaction = async () => {
     if (isConfirming) return;
@@ -334,7 +378,33 @@ const SokoAssistant = () => {
       setShowConfirmation(false);
       setPendingTransaction(null);
       setIsConfirming(false);
+      setIsEditingTransaction(false);
+      setEditedTransaction(null);
     }
+  };
+
+  // Enable stock edit mode
+  const handleEditStock = () => {
+    setEditedStock({ ...pendingStock });
+    setIsEditingStock(true);
+  };
+
+  // Update edited stock field
+  const updateEditedStockField = (field, value) => {
+    setEditedStock((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // Save stock edit
+  const handleSaveStockEdit = () => {
+    setPendingStock(editedStock);
+    setIsEditingStock(false);
+    setEditedStock(null);
+  };
+
+  // Cancel stock edit
+  const handleCancelStockEdit = () => {
+    setIsEditingStock(false);
+    setEditedStock(null);
   };
 
   const handleConfirmStock = async () => {
@@ -378,10 +448,14 @@ const SokoAssistant = () => {
       setShowStockConfirmation(false);
       setPendingStock(null);
       setIsConfirming(false);
+      setIsEditingStock(false);
+      setEditedStock(null);
     }
   };
 
   const handleCancelStock = () => {
+    setIsEditingStock(false);
+    setEditedStock(null);
     const cancelMessage = {
       id: Date.now() + 3,
       type: "ai",
@@ -396,6 +470,8 @@ const SokoAssistant = () => {
 
   // Cancel transaction
   const handleCancelTransaction = () => {
+    setIsEditingTransaction(false);
+    setEditedTransaction(null);
     const cancelMessage = {
       id: Date.now() + 2,
       type: "ai",
@@ -630,10 +706,10 @@ const SokoAssistant = () => {
         <div className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-4 md:px-6 py-4 flex items-center justify-between shrink-0">
           <div>
             <h1 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-white">
-              Assistant
+              SokoTally AI
             </h1>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              Your full chat history is saved here
+              Your AI assistant for business management
             </p>
           </div>
         </div>
@@ -903,80 +979,204 @@ const SokoAssistant = () => {
 
             {/* Transaction Details */}
             <div className="p-6 space-y-4">
-              <div className="bg-gray-50 dark:bg-slate-900/50 rounded-xl p-4 space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-slate-400 text-sm font-medium">
-                    Type:
-                  </span>
-                  <span className="text-gray-900 dark:text-white font-bold capitalize">
-                    {pendingTransaction.type === "income"
-                      ? "Sale"
-                      : pendingTransaction.type === "expense"
-                        ? "Expense"
-                        : pendingTransaction.type}
-                  </span>
-                </div>
+              {isEditingTransaction && editedTransaction ? (
+                /* Edit Form */
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                      Amount (KES)
+                    </label>
+                    <input
+                      type="number"
+                      value={editedTransaction.amount}
+                      onChange={(e) =>
+                        updateEditedField(
+                          "amount",
+                          parseFloat(e.target.value) || 0,
+                        )
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
 
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-slate-400 text-sm font-medium">
-                    Amount:
-                  </span>
-                  <span className="text-2xl font-bold text-gray-900 dark:text-white">
-                    KES {pendingTransaction.amount.toLocaleString()}
-                  </span>
-                </div>
-
-                {pendingTransaction.items &&
-                  pendingTransaction.items.length > 0 && (
-                    <div className="border-t border-gray-200 dark:border-slate-700 pt-3 mt-3">
-                      <span className="text-gray-600 dark:text-slate-400 text-sm font-medium block mb-2">
-                        Items:
-                      </span>
-                      <div className="space-y-2">
-                        {pendingTransaction.items.map((item, index) => (
-                          <div
-                            key={index}
-                            className="flex justify-between text-sm"
-                          >
-                            <span className="text-gray-700 dark:text-slate-300">
-                              {item.quantity} {item.unit} {item.name}
-                            </span>
-                            <span className="text-gray-900 dark:text-white font-medium">
-                              @ {item.unitPrice.toLocaleString()}
-                            </span>
-                          </div>
-                        ))}
+                  {editedTransaction.items &&
+                    editedTransaction.items.length > 0 && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                          Items
+                        </label>
+                        <div className="space-y-3">
+                          {editedTransaction.items.map((item, index) => (
+                            <div
+                              key={index}
+                              className="bg-gray-50 dark:bg-slate-900/50 rounded-lg p-3 space-y-2"
+                            >
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <label className="block text-xs text-gray-600 dark:text-slate-400 mb-1">
+                                    Quantity
+                                  </label>
+                                  <input
+                                    type="number"
+                                    value={item.quantity}
+                                    onChange={(e) =>
+                                      updateEditedItem(
+                                        index,
+                                        "quantity",
+                                        e.target.value,
+                                      )
+                                    }
+                                    className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs text-gray-600 dark:text-slate-400 mb-1">
+                                    Unit Price
+                                  </label>
+                                  <input
+                                    type="number"
+                                    value={item.unitPrice}
+                                    onChange={(e) =>
+                                      updateEditedItem(
+                                        index,
+                                        "unitPrice",
+                                        e.target.value,
+                                      )
+                                    }
+                                    className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                                  />
+                                </div>
+                              </div>
+                              <div className="text-xs text-gray-600 dark:text-slate-400">
+                                {item.name} • Total: KES{" "}
+                                {(
+                                  item.quantity * item.unitPrice
+                                ).toLocaleString()}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
+                    )}
+
+                  {editedTransaction.customerName !== undefined && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                        Customer Name
+                      </label>
+                      <input
+                        type="text"
+                        value={editedTransaction.customerName || ""}
+                        onChange={(e) =>
+                          updateEditedField("customerName", e.target.value)
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                      />
                     </div>
                   )}
-
-                {pendingTransaction.customerName && (
-                  <div className="flex justify-between items-center border-t border-gray-200 dark:border-slate-700 pt-3">
+                </div>
+              ) : (
+                /* Display Mode */
+                <div className="bg-gray-50 dark:bg-slate-900/50 rounded-xl p-4 space-y-3">
+                  <div className="flex justify-between items-center">
                     <span className="text-gray-600 dark:text-slate-400 text-sm font-medium">
-                      Customer:
+                      Type:
                     </span>
-                    <span className="text-gray-900 dark:text-white font-medium">
-                      {pendingTransaction.customerName}
+                    <span className="text-gray-900 dark:text-white font-bold capitalize">
+                      {pendingTransaction.type === "income"
+                        ? "Sale"
+                        : pendingTransaction.type === "expense"
+                          ? "Expense"
+                          : pendingTransaction.type}
                     </span>
                   </div>
-                )}
-              </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-slate-400 text-sm font-medium">
+                      Amount:
+                    </span>
+                    <span className="text-2xl font-bold text-gray-900 dark:text-white">
+                      KES {pendingTransaction.amount.toLocaleString()}
+                    </span>
+                  </div>
+
+                  {pendingTransaction.items &&
+                    pendingTransaction.items.length > 0 && (
+                      <div className="border-t border-gray-200 dark:border-slate-700 pt-3 mt-3">
+                        <span className="text-gray-600 dark:text-slate-400 text-sm font-medium block mb-2">
+                          Items:
+                        </span>
+                        <div className="space-y-2">
+                          {pendingTransaction.items.map((item, index) => (
+                            <div
+                              key={index}
+                              className="flex justify-between text-sm"
+                            >
+                              <span className="text-gray-700 dark:text-slate-300">
+                                {item.quantity} {item.unit} {item.name}
+                              </span>
+                              <span className="text-gray-900 dark:text-white font-medium">
+                                @ {item.unitPrice.toLocaleString()}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                  {pendingTransaction.customerName && (
+                    <div className="flex justify-between items-center border-t border-gray-200 dark:border-slate-700 pt-3">
+                      <span className="text-gray-600 dark:text-slate-400 text-sm font-medium">
+                        Customer:
+                      </span>
+                      <span className="text-gray-900 dark:text-white font-medium">
+                        {pendingTransaction.customerName}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="flex gap-3 pt-2">
-                <button
-                  onClick={handleCancelTransaction}
-                  className="flex-1 px-6 py-3 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-900 dark:text-white rounded-xl font-bold transition-all"
-                >
-                  No, Cancel
-                </button>
-                <button
-                  onClick={handleConfirmTransaction}
-                  disabled={isConfirming}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isConfirming ? "Saving..." : "Yes, Save It"}
-                </button>
+                {isEditingTransaction ? (
+                  <>
+                    <button
+                      onClick={handleCancelEdit}
+                      className="flex-1 px-6 py-3 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-900 dark:text-white rounded-xl font-bold transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveEdit}
+                      className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all"
+                    >
+                      Save Changes
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={handleCancelTransaction}
+                      className="flex-1 px-6 py-3 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-900 dark:text-white rounded-xl font-bold transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleEditTransaction}
+                      className="flex-1 px-6 py-3 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={handleConfirmTransaction}
+                      disabled={isConfirming}
+                      className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isConfirming ? "Saving..." : "Confirm"}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -997,57 +1197,205 @@ const SokoAssistant = () => {
             </div>
 
             <div className="p-6 space-y-4">
-              <div className="bg-gray-50 dark:bg-slate-900/50 rounded-xl p-4 space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-slate-400 text-sm font-medium">
-                    Action:
-                  </span>
-                  <span className="text-gray-900 dark:text-white font-bold capitalize">
-                    {pendingStock.actionType.replace("_", " ")}
-                  </span>
+              {isEditingStock && editedStock ? (
+                /* Edit Form */
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                      Item Name
+                    </label>
+                    <input
+                      type="text"
+                      value={editedStock.itemName}
+                      onChange={(e) =>
+                        updateEditedStockField("itemName", e.target.value)
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                        Quantity
+                      </label>
+                      <input
+                        type="number"
+                        value={editedStock.quantity}
+                        onChange={(e) =>
+                          updateEditedStockField(
+                            "quantity",
+                            parseFloat(e.target.value) || 0,
+                          )
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                        Unit
+                      </label>
+                      <input
+                        type="text"
+                        value={editedStock.unit}
+                        onChange={(e) =>
+                          updateEditedStockField("unit", e.target.value)
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                        Buying Price
+                      </label>
+                      <input
+                        type="number"
+                        value={editedStock.buyingPricePerUnit}
+                        onChange={(e) =>
+                          updateEditedStockField(
+                            "buyingPricePerUnit",
+                            parseFloat(e.target.value) || 0,
+                          )
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                        Selling Price
+                      </label>
+                      <input
+                        type="number"
+                        value={editedStock.sellingPrice}
+                        onChange={(e) =>
+                          updateEditedStockField(
+                            "sellingPrice",
+                            parseFloat(e.target.value) || 0,
+                          )
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  {editedStock.supplierName !== undefined && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                        Supplier Name
+                      </label>
+                      <input
+                        type="text"
+                        value={editedStock.supplierName || ""}
+                        onChange={(e) =>
+                          updateEditedStockField("supplierName", e.target.value)
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  )}
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-slate-400 text-sm font-medium">
-                    Item:
-                  </span>
-                  <span className="text-gray-900 dark:text-white font-bold">
-                    {pendingStock.itemName}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-slate-400 text-sm font-medium">
-                    Quantity:
-                  </span>
-                  <span className="text-gray-900 dark:text-white font-bold">
-                    {pendingStock.quantity} {pendingStock.unit}
-                  </span>
-                </div>
-                {pendingStock.supplierName && (
+              ) : (
+                /* Display Mode */
+                <div className="bg-gray-50 dark:bg-slate-900/50 rounded-xl p-4 space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600 dark:text-slate-400 text-sm font-medium">
-                      Supplier:
+                      Action:
                     </span>
-                    <span className="text-gray-900 dark:text-white font-bold">
-                      {pendingStock.supplierName}
+                    <span className="text-gray-900 dark:text-white font-bold capitalize">
+                      {pendingStock.actionType.replace("_", " ")}
                     </span>
                   </div>
-                )}
-              </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-slate-400 text-sm font-medium">
+                      Item:
+                    </span>
+                    <span className="text-gray-900 dark:text-white font-bold">
+                      {pendingStock.itemName}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-slate-400 text-sm font-medium">
+                      Quantity:
+                    </span>
+                    <span className="text-gray-900 dark:text-white font-bold">
+                      {pendingStock.quantity} {pendingStock.unit}
+                    </span>
+                  </div>
+                  {pendingStock.buyingPricePerUnit > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 dark:text-slate-400 text-sm font-medium">
+                        Buying Price:
+                      </span>
+                      <span className="text-gray-900 dark:text-white font-bold">
+                        KES {pendingStock.buyingPricePerUnit.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                  {pendingStock.sellingPrice > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 dark:text-slate-400 text-sm font-medium">
+                        Selling Price:
+                      </span>
+                      <span className="text-gray-900 dark:text-white font-bold">
+                        KES {pendingStock.sellingPrice.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                  {pendingStock.supplierName && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 dark:text-slate-400 text-sm font-medium">
+                        Supplier:
+                      </span>
+                      <span className="text-gray-900 dark:text-white font-bold">
+                        {pendingStock.supplierName}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="flex gap-3 pt-2">
-                <button
-                  onClick={handleCancelStock}
-                  className="flex-1 px-6 py-3 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-900 dark:text-white rounded-xl font-bold transition-all"
-                >
-                  No, Cancel
-                </button>
-                <button
-                  onClick={handleConfirmStock}
-                  disabled={isConfirming}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isConfirming ? "Saving..." : "Yes, Save It"}
-                </button>
+                {isEditingStock ? (
+                  <>
+                    <button
+                      onClick={handleCancelStockEdit}
+                      className="flex-1 px-6 py-3 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-900 dark:text-white rounded-xl font-bold transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveStockEdit}
+                      className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all"
+                    >
+                      Save Changes
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={handleCancelStock}
+                      className="flex-1 px-6 py-3 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-900 dark:text-white rounded-xl font-bold transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleEditStock}
+                      className="flex-1 px-6 py-3 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={handleConfirmStock}
+                      disabled={isConfirming}
+                      className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isConfirming ? "Saving..." : "Confirm"}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>

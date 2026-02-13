@@ -306,13 +306,14 @@ Use this data to provide accurate, helpful answers about the business performanc
 
     // Use compact conversational prompt to save tokens
     // Detect user language for prompt reinforcement
-    const swahiliWords = /\b(habari|asante|karibu|ndio|hapana|sawa|nimeuza|niliuza|nilinunua|nimenunua|nunua|uza|deni|mkopo|gharama|matumizi|lipa|nimelipa|bei|shilingi|ksh|duka|bidhaa|mauzo|faida|nadai|anadai|wadeni|nililipia|stoki|nimepata)\b/i;
+    const swahiliWords =
+      /\b(habari|asante|karibu|ndio|hapana|sawa|nimeuza|niliuza|nilinunua|nimenunua|nunua|uza|deni|mkopo|gharama|matumizi|lipa|nimelipa|bei|shilingi|ksh|duka|bidhaa|mauzo|faida|nadai|anadai|wadeni|nililipia|stoki|nimepata)\b/i;
     const userSpeaksSwahili = swahiliWords.test(userMessage);
 
     const conversationalPrompt = `You are SokoTally, a friendly AI assistant for small shop owners in Kenya.
 
 LANGUAGE RULE (MUST follow — this is the #1 priority):
-${userSpeaksSwahili ? '- The user is writing in Swahili. You MUST reply ENTIRELY in Swahili. Do NOT use English at all.' : '- Reply in the same language the user uses. If English, reply in English. If Swahili, reply in Swahili. If mixed, match their style.'}
+${userSpeaksSwahili ? "- The user is writing in Swahili. You MUST reply ENTIRELY in Swahili. Do NOT use English at all." : "- Reply in the same language the user uses. If English, reply in English. If Swahili, reply in Swahili. If mixed, match their style."}
 
 RULES:
 - Be brief, friendly, conversational
@@ -377,7 +378,16 @@ RULES:
     let pendingTransaction = null;
     // Normalize confidence to a number (fallback returns string like "high")
     const rawConf = extractedData.confidence;
-    const numericConfidence = typeof rawConf === 'number' ? rawConf : (rawConf === 'high' ? 0.9 : rawConf === 'medium' ? 0.7 : rawConf === 'low' ? 0.4 : 0);
+    const numericConfidence =
+      typeof rawConf === "number"
+        ? rawConf
+        : rawConf === "high"
+          ? 0.9
+          : rawConf === "medium"
+            ? 0.7
+            : rawConf === "low"
+              ? 0.4
+              : 0;
     const hasStrongTransactionIntent =
       extractedData.transactionType &&
       extractedData.totalAmount > 0 &&
@@ -814,7 +824,16 @@ router.post(
       // Process transaction if data was extracted
       let pendingTransaction = null;
       const rawConfV = extractedData.confidence;
-      const numericConfV = typeof rawConfV === 'number' ? rawConfV : (rawConfV === 'high' ? 0.9 : rawConfV === 'medium' ? 0.7 : rawConfV === 'low' ? 0.4 : 0);
+      const numericConfV =
+        typeof rawConfV === "number"
+          ? rawConfV
+          : rawConfV === "high"
+            ? 0.9
+            : rawConfV === "medium"
+              ? 0.7
+              : rawConfV === "low"
+                ? 0.4
+                : 0;
       const lowerTxt = transcribedText.toLowerCase();
       const hasStrongTransactionIntent =
         extractedData.transactionType &&
@@ -867,13 +886,14 @@ router.post(
       }
 
       // Generate AI response using compact prompt
-      const swWordsV = /\b(habari|asante|karibu|ndio|hapana|sawa|nimeuza|niliuza|nilinunua|nimenunua|nunua|uza|deni|mkopo|gharama|matumizi|lipa|nimelipa|bei|shilingi|ksh|duka|bidhaa|mauzo|faida|nadai|anadai|wadeni|nililipia|stoki|nimepata)\b/i;
+      const swWordsV =
+        /\b(habari|asante|karibu|ndio|hapana|sawa|nimeuza|niliuza|nilinunua|nimenunua|nunua|uza|deni|mkopo|gharama|matumizi|lipa|nimelipa|bei|shilingi|ksh|duka|bidhaa|mauzo|faida|nadai|anadai|wadeni|nililipia|stoki|nimepata)\b/i;
       const userSpeaksSwV = swWordsV.test(transcribedText);
 
       const conversationalPrompt = `You are SokoTally, a friendly AI assistant for small shop owners in Kenya.
 
 LANGUAGE RULE (MUST follow — this is the #1 priority):
-${userSpeaksSwV ? '- The user is speaking in Swahili. You MUST reply ENTIRELY in Swahili. Do NOT use English at all.' : '- Reply in the same language the user uses. If English, reply in English. If Swahili, reply in Swahili. If mixed, match their style.'}
+${userSpeaksSwV ? "- The user is speaking in Swahili. You MUST reply ENTIRELY in Swahili. Do NOT use English at all." : "- Reply in the same language the user uses. If English, reply in English. If Swahili, reply in Swahili. If mixed, match their style."}
 
 RULES:
 - Be brief, friendly, conversational

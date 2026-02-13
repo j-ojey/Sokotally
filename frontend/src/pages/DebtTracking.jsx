@@ -26,13 +26,22 @@ const DebtTracking = () => {
     setLoading(true);
     const token = getToken();
     try {
-      const res = await fetch(
-        `${API_BASE}/api/transactions?type=debt&status=all`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      if (res.ok) {
-        const data = await res.json();
-        const transactions = data.transactions || data || [];
+      // Fetch both debt and loan types with high limit
+      const [debtRes, loanRes] = await Promise.all([
+        fetch(`${API_BASE}/api/transactions?type=debt&limit=500`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${API_BASE}/api/transactions?type=loan&limit=500`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+      if (debtRes.ok && loanRes.ok) {
+        const debtData = await debtRes.json();
+        const loanData = await loanRes.json();
+        const transactions = [
+          ...(debtData.transactions || debtData || []),
+          ...(loanData.transactions || loanData || []),
+        ];
 
         // Separate debts given vs debts owed
         const debtsGiven = transactions.filter(
@@ -54,7 +63,7 @@ const DebtTracking = () => {
 
         setDebts(activeTab === "given" ? debtsGiven : debtsOwed);
       } else {
-        console.error("Failed to fetch debts:", await res.text());
+        console.error("Failed to fetch debts");
       }
     } catch (err) {
       console.error("Failed to fetch debts:", err);
@@ -104,6 +113,28 @@ const DebtTracking = () => {
       }
     } catch (err) {
       console.error("Error marking as paid:", err);
+    }
+  };
+
+  const deleteDebt = async (debtId) => {
+    if (!confirm("Are you sure you want to delete this debt record?")) {
+      return;
+    }
+
+    const token = getToken();
+    try {
+      const res = await fetch(`${API_BASE}/api/transactions/${debtId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.ok) {
+        fetchDebts();
+      }
+    } catch (err) {
+      console.error("Error deleting debt:", err);
     }
   };
 
@@ -210,6 +241,7 @@ const DebtTracking = () => {
                 debt={debt}
                 type={activeTab}
                 onMarkAsPaid={markAsPaid}
+                onDelete={deleteDebt}
               />
             ))
           )}
@@ -245,7 +277,7 @@ const StatCard = ({ icon, title, value, subtitle, color }) => {
   );
 };
 
-const DebtCard = ({ debt, type, onMarkAsPaid }) => {
+const DebtCard = ({ debt, type, onMarkAsPaid, onDelete }) => {
   const isPaid = debt.status === "paid";
   const personName = type === "given" ? debt.customerName : debt.lender;
   const date = new Date(debt.occurredAt).toLocaleDateString("en-US", {
@@ -336,6 +368,13 @@ const DebtCard = ({ debt, type, onMarkAsPaid }) => {
               Remind
             </button>
           )}
+
+          <button
+            onClick={() => onDelete(debt._id)}
+            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium text-sm"
+          >
+            Delete
+          </button>
         </div>
       </div>
     </div>

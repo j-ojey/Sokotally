@@ -169,7 +169,7 @@ router.get("/stats/dashboard", authMiddleware, async (req, res, next) => {
       {
         $match: {
           userId,
-          type: "income",
+          type: { $in: ["sale", "income"] },
           occurredAt: { $gte: todayStart, $lte: todayEnd },
         },
       },
@@ -192,7 +192,7 @@ router.get("/stats/dashboard", authMiddleware, async (req, res, next) => {
       {
         $match: {
           userId,
-          type: "income",
+          type: { $in: ["sale", "income"] },
           occurredAt: { $gte: yesterdayStart, $lte: yesterdayEnd },
         },
       },
@@ -273,7 +273,11 @@ router.get("/stats/dashboard", authMiddleware, async (req, res, next) => {
 
     const monthlySales = await Transaction.aggregate([
       {
-        $match: { userId, type: "income", occurredAt: { $gte: sixMonthsAgo } },
+        $match: {
+          userId,
+          type: { $in: ["sale", "income"] },
+          occurredAt: { $gte: sixMonthsAgo },
+        },
       },
       {
         $group: {
@@ -333,7 +337,13 @@ router.get("/stats/dashboard", authMiddleware, async (req, res, next) => {
       daysAgo.setHours(0, 0, 0, 0);
 
       salesByDay = await Transaction.aggregate([
-        { $match: { userId, type: "income", occurredAt: { $gte: daysAgo } } },
+        {
+          $match: {
+            userId,
+            type: { $in: ["sale", "income"] },
+            occurredAt: { $gte: daysAgo },
+          },
+        },
         {
           $group: {
             _id: { $dateToString: { format: "%Y-%m-%d", date: "$occurredAt" } },
@@ -349,7 +359,13 @@ router.get("/stats/dashboard", authMiddleware, async (req, res, next) => {
       monthsAgo.setHours(0, 0, 0, 0);
 
       salesByDay = await Transaction.aggregate([
-        { $match: { userId, type: "income", occurredAt: { $gte: monthsAgo } } },
+        {
+          $match: {
+            userId,
+            type: { $in: ["sale", "income"] },
+            occurredAt: { $gte: monthsAgo },
+          },
+        },
         {
           $group: {
             _id: { $dateToString: { format: "%Y-%m", date: "$occurredAt" } },
@@ -365,7 +381,7 @@ router.get("/stats/dashboard", authMiddleware, async (req, res, next) => {
       {
         $match: {
           userId,
-          type: "income",
+          type: { $in: ["sale", "income"] },
           items: { $exists: true, $ne: [] },
         },
       },
@@ -382,9 +398,31 @@ router.get("/stats/dashboard", authMiddleware, async (req, res, next) => {
       { $limit: 10 },
     ]);
 
+    // Least selling items
+    const leastItems = await Transaction.aggregate([
+      {
+        $match: {
+          userId,
+          type: { $in: ["sale", "income"] },
+          items: { $exists: true, $ne: [] },
+        },
+      },
+      { $unwind: "$items" },
+      {
+        $group: {
+          _id: "$items.name",
+          quantity: { $sum: "$items.quantity" },
+          revenue: { $sum: "$items.totalPrice" },
+          unit: { $first: "$items.unit" },
+        },
+      },
+      { $sort: { revenue: 1 } },
+      { $limit: 5 },
+    ]);
+
     // Top customers by sales (try to lookup Customer name)
     const topCustomers = await Transaction.aggregate([
-      { $match: { userId, type: "income" } },
+      { $match: { userId, type: { $in: ["sale", "income"] } } },
       {
         $group: {
           _id: "$customerId",
@@ -436,6 +474,12 @@ router.get("/stats/dashboard", authMiddleware, async (req, res, next) => {
       salesByDay,
       topCustomers,
       topItems: topItems.map((item) => ({
+        name: item._id,
+        quantity: item.quantity,
+        revenue: item.revenue,
+        unit: item.unit,
+      })),
+      leastItems: leastItems.map((item) => ({
         name: item._id,
         quantity: item.quantity,
         revenue: item.revenue,
@@ -607,7 +651,7 @@ router.get("/analytics/least-items", authMiddleware, async (req, res, next) => {
 
     const matchStage = {
       userId,
-      type: "income",
+      type: { $in: ["sale", "income"] },
       items: { $exists: true, $ne: [] },
     };
 

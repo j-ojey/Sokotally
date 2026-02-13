@@ -69,7 +69,7 @@ const FinancialOverview = () => {
                 Total Transactions
               </p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {data?.overview?.totalCount || 0}
+                {(data?.overview?.sales || 0) + (data?.overview?.expenses || 0)}
               </p>
             </div>
           </div>
@@ -84,7 +84,7 @@ const FinancialOverview = () => {
                 Sales Count
               </p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {data?.overview?.salesCount || 0}
+                {data?.overview?.sales || 0}
               </p>
             </div>
           </div>
@@ -99,7 +99,7 @@ const FinancialOverview = () => {
                 Purchases Count
               </p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {data?.overview?.purchasesCount || 0}
+                {data?.overview?.expenses || 0}
               </p>
             </div>
           </div>
@@ -111,10 +111,10 @@ const FinancialOverview = () => {
             </div>
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Returns Count
+                Active Users
               </p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {data?.overview?.returnsCount || 0}
+                {data?.overview?.activeUsers || 0}
               </p>
             </div>
           </div>
@@ -122,55 +122,73 @@ const FinancialOverview = () => {
       </div>
 
       {/* Daily Trends */}
-      {data?.dailyTrends?.length > 0 && (
+      {data?.dailyVolume?.length > 0 && (
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-6 mb-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Transaction Trends (Daily)
           </h3>
           <div className="space-y-3">
-            {data.dailyTrends.map((day, idx) => (
-              <div key={idx} className="flex items-center gap-4">
-                <span className="text-sm text-gray-600 dark:text-gray-400 w-32">
-                  {day.date}
-                </span>
-                <div className="flex-1 bg-gray-200 dark:bg-slate-700 rounded-full h-6">
-                  <div
-                    className="bg-blue-600 h-6 rounded-full flex items-center justify-end px-2"
-                    style={{
-                      width: `${Math.min((day.count / Math.max(...data.dailyTrends.map((d) => d.count))) * 100, 100)}%`,
-                    }}
-                  >
-                    <span className="text-xs text-white font-semibold">
-                      {day.count}
-                    </span>
+            {(() => {
+              // Group dailyVolume by date
+              const byDate = {};
+              data.dailyVolume.forEach((d) => {
+                byDate[d.date] = (byDate[d.date] || 0) + d.count;
+              });
+              const entries = Object.entries(byDate).sort(([a], [b]) =>
+                a.localeCompare(b),
+              );
+              const maxCount = Math.max(...entries.map(([, c]) => c), 1);
+              return entries.map(([date, count], idx) => (
+                <div key={idx} className="flex items-center gap-4">
+                  <span className="text-sm text-gray-600 dark:text-gray-400 w-32">
+                    {date}
+                  </span>
+                  <div className="flex-1 bg-gray-200 dark:bg-slate-700 rounded-full h-6">
+                    <div
+                      className="bg-blue-600 h-6 rounded-full flex items-center justify-end px-2"
+                      style={{
+                        width: `${Math.min((count / maxCount) * 100, 100)}%`,
+                      }}
+                    >
+                      <span className="text-xs text-white font-semibold">
+                        {count}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ));
+            })()}
           </div>
         </div>
       )}
 
       {/* Type Breakdown */}
-      {data?.byType?.length > 0 && (
+      {data?.dailyVolume?.length > 0 && (
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Transaction Types
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {data.byType.map((type, idx) => (
-              <div
-                key={idx}
-                className="border border-gray-200 dark:border-slate-700 rounded-lg p-4"
-              >
-                <p className="text-sm text-gray-600 dark:text-gray-400 capitalize mb-1">
-                  {type._id}
-                </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {type.count}
-                </p>
-              </div>
-            ))}
+            {(() => {
+              // Group dailyVolume by type
+              const byType = {};
+              data.dailyVolume.forEach((d) => {
+                byType[d.type] = (byType[d.type] || 0) + d.count;
+              });
+              return Object.entries(byType).map(([type, count], idx) => (
+                <div
+                  key={idx}
+                  className="border border-gray-200 dark:border-slate-700 rounded-lg p-4"
+                >
+                  <p className="text-sm text-gray-600 dark:text-gray-400 capitalize mb-1">
+                    {type}
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {count}
+                  </p>
+                </div>
+              ));
+            })()}
           </div>
         </div>
       )}

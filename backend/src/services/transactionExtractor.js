@@ -36,7 +36,7 @@ export async function extractTransactionData(userMessage) {
  * Build extraction prompt based on language
  */
 function buildExtractionPrompt() {
-  return `You are an intelligent transaction extractor. Extract business transaction data from natural language in ANY language.
+  return `You are an intelligent transaction extractor for SokoTally. Extract business transaction data from natural language in ANY language.
 
 Return ONLY valid JSON - no explanations, no markdown.
 
@@ -57,12 +57,22 @@ RULES:
 4. Other costs = EXPENSE
 5. Non-transactions return null transactionType
 
-EXAMPLES:
-"I sold 5 tomatoes for 100 each to John"
-→ {"transactionType":"sale","items":[{"name":"tomatoes","quantity":5,"unit":"pieces","unitPrice":100}],"totalAmount":500,"customerName":"John","date":null,"notes":null,"paymentStatus":"paid","confidence":0.95}
+PRICING RULES (CRITICAL):
+- "for X each" / "for X per" / "kwa X kila" / "kila moja X" → unitPrice = X, totalAmount = quantity × X
+- "for X" / "kwa X" (without each/per/kila) → totalAmount = X, unitPrice = X ÷ quantity
 
-"Nimeuza nyanya 5 kwa shilingi 100 kila moja"
-→ {"transactionType":"sale","items":[{"name":"tomatoes","quantity":5,"unit":"pieces","unitPrice":100}],"totalAmount":500,"customerName":null,"date":null,"notes":null,"paymentStatus":"paid","confidence":0.95}
+EXAMPLES:
+"I sold 10 tomatoes for 5 shillings each"
+→ {"transactionType":"sale","items":[{"name":"tomatoes","quantity":10,"unit":"pieces","unitPrice":5}],"totalAmount":50,"customerName":null,"date":null,"notes":null,"paymentStatus":"paid","confidence":0.95}
+
+"I sold 10 tomatoes for 200 shillings"
+→ {"transactionType":"sale","items":[{"name":"tomatoes","quantity":10,"unit":"pieces","unitPrice":20}],"totalAmount":200,"customerName":null,"date":null,"notes":null,"paymentStatus":"paid","confidence":0.95}
+
+"Nimeuza nyanya 10 kwa shilingi 5 kila moja"
+→ {"transactionType":"sale","items":[{"name":"tomatoes","quantity":10,"unit":"pieces","unitPrice":5}],"totalAmount":50,"customerName":null,"date":null,"notes":null,"paymentStatus":"paid","confidence":0.95}
+
+"Nimeuza nyanya 10 kwa shilingi 200"
+→ {"transactionType":"sale","items":[{"name":"tomatoes","quantity":10,"unit":"pieces","unitPrice":20}],"totalAmount":200,"customerName":null,"date":null,"notes":null,"paymentStatus":"paid","confidence":0.95}
 
 "How are you?"
 → {"transactionType":null,"items":[],"totalAmount":0,"customerName":null,"date":null,"notes":null,"paymentStatus":null,"confidence":0}
@@ -177,10 +187,7 @@ function fallbackExtraction(text) {
     lowerText.includes("wadeni")
   ) {
     transactionType = "debt";
-  } else if (
-    lowerText.includes("loan") ||
-    lowerText.includes("mkopo")
-  ) {
+  } else if (lowerText.includes("loan") || lowerText.includes("mkopo")) {
     transactionType = "loan";
   } else if (
     lowerText.includes("sold") ||
@@ -193,14 +200,20 @@ function fallbackExtraction(text) {
     transactionType = "sale";
   }
 
+  // Detect if price is per-unit ("each", "per", "kila") or total
+  const hasPerUnitIndicator = /\b(each|per|kila\s+moja|kila)\b/i.test(
+    lowerText,
+  );
+
   // Extract amounts (including Swahili patterns like "kwa 500 bob", "shilingi 1000")
-  const amountRegex = /(?:ksh|kes|shilingi|bob)?\s*(\d+(?:,\d{3})*(?:\.\d{2})?)\s*(?:bob|shillings?|shilingi|ksh|kes)?/gi;
+  const amountRegex =
+    /(?:ksh|kes|shilingi|bob)?\s*(\d+(?:,\d{3})*(?:\.\d{2})?)\s*(?:bob|shillings?|shilingi|ksh|kes)?/gi;
   const amounts = [];
   let match;
   while ((match = amountRegex.exec(text)) !== null) {
     amounts.push(parseFloat(match[1].replace(/,/g, "")));
   }
-  const totalAmount = amounts[0] || 0;
+  const extractedPrice = amounts[0] || 0;
 
   // Extract quantities and units
   const quantityRegex =
@@ -222,12 +235,24 @@ function fallbackExtraction(text) {
         .toLowerCase();
       const itemName = extractItemName(beforeQuantity) || "item";
 
+      // Calculate prices based on whether "each"/"per"/"kila" was used
+      let unitPrice, totalPrice;
+      if (hasPerUnitIndicator) {
+        // Price is per unit: "10 tomatoes for 5 each" → unitPrice=5, total=50
+        unitPrice = extractedPrice;
+        totalPrice = unitPrice * quantity;
+      } else {
+        // Price is total: "10 tomatoes for 200" → total=200, unitPrice=20
+        totalPrice = extractedPrice;
+        unitPrice = totalPrice / quantity || 0;
+      }
+
       items.push({
         name: itemName,
         quantity,
         unit,
-        unitPrice: totalAmount / quantity || 0,
-        totalPrice: totalAmount,
+        unitPrice,
+        totalPrice,
       });
     });
   } else {
@@ -236,10 +261,13 @@ function fallbackExtraction(text) {
       name: extractItemName(lowerText) || "item",
       quantity: 1,
       unit: "unit",
-      unitPrice: totalAmount,
-      totalPrice: totalAmount,
+      unitPrice: extractedPrice,
+      totalPrice: extractedPrice,
     });
   }
+
+  // Calculate total amount from all items
+  const totalAmount = items.reduce((sum, item) => sum + item.totalPrice, 0);
 
   // Extract customer name (capitalized words)
   const nameRegex = /(?:to|from|for)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/;
