@@ -134,7 +134,11 @@ function fallbackStockExtraction(message) {
 
   // Detect action type
   let actionType = null;
-  if (/bought|received|add|restock|nunua|nimepata|pata/i.test(lowerMsg)) {
+  if (
+    /bought|received|add|restock|nunua|nimenunua|nilinunua|numenua|nimepata|pata/i.test(
+      lowerMsg,
+    )
+  ) {
     actionType = "add_stock";
   } else if (/remove|spoiled|lost|ondoa|imeharibika|haribika/i.test(lowerMsg)) {
     actionType = "remove_stock";
@@ -202,7 +206,8 @@ export async function classifyMessage(message) {
 
   // Stock indicators
   const stockIndicators = [
-    /bought.*?(\d+\s*(?:kg|kilo|pieces|bundles|bags))/i,
+    /bought.*?(\d+\s*(?:kg|kilo|pieces|bundles|bags|vipande))/i,
+    /bought\s+\d+/i,
     /received.*?stock/i,
     /add.*?(?:to\s+)?stock/i,
     /restock/i,
@@ -210,6 +215,12 @@ export async function classifyMessage(message) {
     /spoiled/i,
     /imeharibika/i,
     /nimepata.*?(?:kg|kilo|pieces|bundles)/i,
+    /nimepata\s+\d+/i,
+    /nimenunua\s+/i,
+    /nilinunua\s+/i,
+    /numenua\s+/i,
+    /nunua\s+/i,
+    /ni[lm]e?nunua/i,
     /stock\s+(?:ya|of)/i,
   ];
 

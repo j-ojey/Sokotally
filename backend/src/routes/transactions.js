@@ -360,6 +360,28 @@ router.get("/stats/dashboard", authMiddleware, async (req, res, next) => {
       ]);
     }
 
+    // Top selling items
+    const topItems = await Transaction.aggregate([
+      {
+        $match: {
+          userId,
+          type: "income",
+          items: { $exists: true, $ne: [] },
+        },
+      },
+      { $unwind: "$items" },
+      {
+        $group: {
+          _id: "$items.name",
+          quantity: { $sum: "$items.quantity" },
+          revenue: { $sum: "$items.totalPrice" },
+          unit: { $first: "$items.unit" },
+        },
+      },
+      { $sort: { revenue: -1 } },
+      { $limit: 10 },
+    ]);
+
     // Top customers by sales (try to lookup Customer name)
     const topCustomers = await Transaction.aggregate([
       { $match: { userId, type: "income" } },
@@ -413,6 +435,12 @@ router.get("/stats/dashboard", authMiddleware, async (req, res, next) => {
       },
       salesByDay,
       topCustomers,
+      topItems: topItems.map((item) => ({
+        name: item._id,
+        quantity: item.quantity,
+        revenue: item.revenue,
+        unit: item.unit,
+      })),
     });
   } catch (e) {
     next(e);

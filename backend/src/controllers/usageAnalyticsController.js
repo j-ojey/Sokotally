@@ -1,6 +1,7 @@
 import { User } from "../models/User.js";
 import Transaction from "../models/Transaction.js";
-import Debt from "../models/Debt.js";
+import ChatMessage from "../models/ChatMessage.js";
+import { AIUsage } from "../models/AIUsage.js";
 
 /**
  * Usage Analytics Controller
@@ -22,29 +23,47 @@ export async function getUsageAnalytics(req, res) {
     const totalUsers = await User.countDocuments();
 
     // Transaction activity
-    const [transactionMetrics, debtMetrics] = await Promise.all([
-      Transaction.aggregate([
-        { $match: { createdAt: { $gte: timeFilter } } },
-        {
-          $group: {
-            _id: "$type",
-            count: { $sum: 1 },
-            totalAmount: { $sum: "$amount" },
+    const [transactionMetrics, debtMetrics, chatMetrics, aiMetrics] =
+      await Promise.all([
+        Transaction.aggregate([
+          { $match: { createdAt: { $gte: timeFilter } } },
+          {
+            $group: {
+              _id: "$type",
+              count: { $sum: 1 },
+              totalAmount: { $sum: "$amount" },
+            },
           },
-        },
-      ]),
-      Debt.aggregate([
-        { $match: { createdAt: { $gte: timeFilter } } },
-        {
-          $group: {
-            _id: null,
-            totalDebts: { $sum: 1 },
-            totalOwed: { $sum: "$amountOwed" },
-            totalPaid: { $sum: "$amountPaid" },
+        ]),
+        // Query debts from Transaction model (type=debt, status=unpaid/partial)
+        Transaction.aggregate([
+          { $match: { createdAt: { $gte: timeFilter }, type: "debt" } },
+          {
+            $group: {
+              _id: null,
+              totalDebts: { $sum: 1 },
+              totalOwed: {
+                $sum: {
+                  $cond: [
+                    { $in: ["$status", ["unpaid", "partial"]] },
+                    "$amount",
+                    0,
+                  ],
+                },
+              },
+              totalPaid: {
+                $sum: {
+                  $cond: [{ $eq: ["$status", "paid"] }, "$amount", 0],
+                },
+              },
+            },
           },
-        },
-      ]),
-    ]);
+        ]),
+        // Chat engagement
+        ChatMessage.countDocuments({ createdAt: { $gte: timeFilter } }),
+        // AI usage
+        AIUsage.countDocuments({ timestamp: { $gte: timeFilter } }),
+      ]);
 
     // Daily active users
     const dauStats = await User.aggregate([
@@ -73,6 +92,8 @@ export async function getUsageAnalytics(req, res) {
         activeUsers,
         activePercentage:
           totalUsers > 0 ? ((activeUsers / totalUsers) * 100).toFixed(2) : 0,
+        totalChatMessages: chatMetrics,
+        totalAIRequests: aiMetrics,
       },
       transactions: transactionMetrics,
       debts: debtMetrics[0] || { totalDebts: 0, totalOwed: 0, totalPaid: 0 },

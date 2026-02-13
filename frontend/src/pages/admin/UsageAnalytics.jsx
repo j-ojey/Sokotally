@@ -1,7 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { getToken } from "../../storage/auth";
 import { API_BASE } from "../../config/api";
-import { TrendingUp, Users, Activity, BarChart3 } from "lucide-react";
+import {
+  TrendingUp,
+  Users,
+  Activity,
+  BarChart3,
+  MessageSquare,
+  Bot,
+} from "lucide-react";
 
 const UsageAnalytics = () => {
   const [analytics, setAnalytics] = useState(null);
@@ -58,7 +65,7 @@ const UsageAnalytics = () => {
       </div>
 
       {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
           <div className="flex items-center gap-4 mb-4">
             <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
@@ -100,6 +107,36 @@ const UsageAnalytics = () => {
               </p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
                 {analytics?.overview?.activePercentage || 0}%
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-3 bg-indigo-100 dark:bg-indigo-900/20 rounded-lg">
+              <MessageSquare className="h-6 w-6 text-indigo-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Chat Messages
+              </p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {analytics?.overview?.totalChatMessages || 0}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-3 bg-amber-100 dark:bg-amber-900/20 rounded-lg">
+              <Bot className="h-6 w-6 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                AI Requests
+              </p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {analytics?.overview?.totalAIRequests || 0}
               </p>
             </div>
           </div>

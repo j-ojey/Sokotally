@@ -14,7 +14,14 @@ const aiUsageSchema = new mongoose.Schema(
     sessionId: { type: String },
     messageType: {
       type: String,
-      enum: ["chat", "transaction_parsing", "keyword_extraction", "suggestion"],
+      enum: [
+        "chat",
+        "text",
+        "voice",
+        "transaction_parsing",
+        "keyword_extraction",
+        "suggestion",
+      ],
       required: true,
     },
     tokensUsed: { type: Number, default: 0 },

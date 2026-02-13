@@ -29,6 +29,15 @@ const FraudDetection = () => {
   };
 
   const resolveFlag = async (flagId) => {
+    // Anomaly flags (generated in real-time) can be dismissed locally
+    if (
+      flagId.startsWith("large_tx_") ||
+      flagId.startsWith("rapid_tx_") ||
+      flagId.startsWith("ai_fail_")
+    ) {
+      setFlags((prev) => prev.filter((f) => f._id !== flagId));
+      return;
+    }
     const token = getToken();
     try {
       const res = await fetch(

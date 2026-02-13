@@ -1,5 +1,7 @@
 import { User } from "../models/User.js";
 import { SystemHealth } from "../models/SystemHealth.js";
+import Transaction from "../models/Transaction.js";
+import { AIUsage } from "../models/AIUsage.js";
 import os from "os";
 
 /**
@@ -203,11 +205,15 @@ export async function getSystemHealth(req, res) {
 }
 
 /**
- * Get fraud detection flags (app-level security issues)
+ * Get fraud detection flags (app-level security issues + transaction anomalies)
  */
 export async function getFraudFlags(req, res) {
   try {
-    const flags = await SystemHealth.find({
+    const last7Days = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    // 1. System-level flags from SystemHealth
+    const systemFlags = await SystemHealth.find({
       suspiciousActivityType: { $ne: "none" },
       resolved: false,
     })
@@ -217,20 +223,109 @@ export async function getFraudFlags(req, res) {
         "suspiciousActivityType flaggedIpAddresses timestamp severity notes",
       );
 
-    const flagsByType = await SystemHealth.aggregate([
+    // 2. Detect transaction anomalies in real-time
+    const anomalyFlags = [];
+
+    // 2a. Unusually large transactions (> 3x average)
+    const avgResult = await Transaction.aggregate([
+      { $match: { createdAt: { $gte: last7Days } } },
+      { $group: { _id: null, avgAmount: { $avg: "$amount" } } },
+    ]);
+    const avgAmount = avgResult[0]?.avgAmount || 0;
+    if (avgAmount > 0) {
+      const largeTransactions = await Transaction.find({
+        createdAt: { $gte: last24Hours },
+        amount: { $gt: avgAmount * 3 },
+      })
+        .populate("userId", "name email")
+        .sort({ amount: -1 })
+        .limit(10);
+
+      for (const tx of largeTransactions) {
+        anomalyFlags.push({
+          _id: `large_tx_${tx._id}`,
+          suspiciousActivityType: "unusually_large_transaction",
+          severity: tx.amount > avgAmount * 10 ? "critical" : "high",
+          timestamp: tx.createdAt,
+          notes: `Transaction of KES ${tx.amount.toLocaleString()} by ${tx.userId?.name || "Unknown"} — ${(tx.amount / avgAmount).toFixed(1)}x the average (KES ${Math.round(avgAmount).toLocaleString()})`,
+          flaggedIpAddresses: [],
+        });
+      }
+    }
+
+    // 2b. Rapid transaction creation (>20 transactions in 1 hour by same user)
+    const rapidUsers = await Transaction.aggregate([
+      { $match: { createdAt: { $gte: last24Hours } } },
       {
-        $match: {
-          suspiciousActivityType: { $ne: "none" },
-          timestamp: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+        $group: {
+          _id: {
+            userId: "$userId",
+            hour: {
+              $dateToString: { format: "%Y-%m-%dT%H", date: "$createdAt" },
+            },
+          },
+          count: { $sum: 1 },
         },
       },
-      { $group: { _id: "$suspiciousActivityType", count: { $sum: 1 } } },
+      { $match: { count: { $gt: 20 } } },
+      { $sort: { count: -1 } },
+      { $limit: 10 },
     ]);
 
+    for (const rapid of rapidUsers) {
+      const user = await User.findById(rapid._id.userId).select("name email");
+      anomalyFlags.push({
+        _id: `rapid_tx_${rapid._id.userId}_${rapid._id.hour}`,
+        suspiciousActivityType: "rapid_transactions",
+        severity: rapid.count > 50 ? "critical" : "high",
+        timestamp: new Date(rapid._id.hour),
+        notes: `${user?.name || "Unknown"} created ${rapid.count} transactions in 1 hour`,
+        flaggedIpAddresses: [],
+      });
+    }
+
+    // 2c. Multiple failed AI requests (potential abuse)
+    const failedAI = await AIUsage.aggregate([
+      { $match: { timestamp: { $gte: last24Hours }, success: false } },
+      {
+        $group: {
+          _id: "$userId",
+          failCount: { $sum: 1 },
+        },
+      },
+      { $match: { failCount: { $gt: 10 } } },
+      { $sort: { failCount: -1 } },
+      { $limit: 10 },
+    ]);
+
+    for (const fail of failedAI) {
+      const user = await User.findById(fail._id).select("name email");
+      anomalyFlags.push({
+        _id: `ai_fail_${fail._id}`,
+        suspiciousActivityType: "excessive_ai_failures",
+        severity: "medium",
+        timestamp: new Date(),
+        notes: `${user?.name || "Unknown"} had ${fail.failCount} failed AI requests in 24h`,
+        flaggedIpAddresses: [],
+      });
+    }
+
+    const allFlags = [...systemFlags, ...anomalyFlags];
+
+    const flagsByType = {};
+    for (const flag of allFlags) {
+      const type = flag.suspiciousActivityType;
+      flagsByType[type] = (flagsByType[type] || 0) + 1;
+    }
+    const summary = Object.entries(flagsByType).map(([type, count]) => ({
+      _id: type,
+      count,
+    }));
+
     res.json({
-      activeFlags: flags,
-      summary: flagsByType,
-      totalUnresolved: flags.length,
+      activeFlags: allFlags,
+      summary,
+      totalUnresolved: allFlags.length,
     });
   } catch (error) {
     console.error("Fraud flags error:", error);
