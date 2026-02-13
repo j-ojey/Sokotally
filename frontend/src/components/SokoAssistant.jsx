@@ -8,7 +8,7 @@ const SokoAssistant = () => {
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
+
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [pendingTransaction, setPendingTransaction] = useState(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -19,7 +19,6 @@ const SokoAssistant = () => {
   const mediaRecorderRef = useRef(null);
   const mediaStreamRef = useRef(null);
   const recordingIntervalRef = useRef(null);
-  const activeAudioRef = useRef(null);
   const recognitionRef = useRef(null);
   const interimTranscriptRef = useRef("");
   const silenceTimerRef = useRef(null);
@@ -43,14 +42,6 @@ const SokoAssistant = () => {
 
   // Cleanup voice recording on unmount
   useEffect(() => {
-    // Load voices for TTS
-    if ("speechSynthesis" in window) {
-      // Chrome loads voices asynchronously
-      window.speechSynthesis.onvoiceschanged = () => {
-        window.speechSynthesis.getVoices();
-      };
-    }
-
     return () => {
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
@@ -73,13 +64,6 @@ const SokoAssistant = () => {
       if (mediaStreamRef.current) {
         mediaStreamRef.current.getTracks().forEach((track) => track.stop());
         mediaStreamRef.current = null;
-      }
-      if (activeAudioRef.current) {
-        activeAudioRef.current.pause();
-        activeAudioRef.current = null;
-      }
-      if ("speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
       }
     };
   }, []);
@@ -160,28 +144,31 @@ const SokoAssistant = () => {
 
       // Check if there's a pending transaction that needs confirmation
       if (data.pendingTransaction) {
-        console.log(
-          "[CONFIRMATION] Setting pending transaction:",
-          data.pendingTransaction,
-        );
         setPendingTransaction({
           ...data.pendingTransaction,
           conversationId: data.conversationId,
           userMessage: userMessage,
         });
         setShowConfirmation(true);
-        console.log("[CONFIRMATION] showConfirmation set to true");
+        // Return a brief acknowledgment — the confirmation card handles the details
+        const txType =
+          data.pendingTransaction.type === "income"
+            ? "sale"
+            : data.pendingTransaction.type === "expense"
+              ? "expense"
+              : "transaction";
+        return `I detected a ${txType} of KES ${data.pendingTransaction.amount?.toLocaleString()}. Please confirm below.`;
       }
 
       if (data.pendingStock) {
-        console.log("[CONFIRMATION] Setting pending stock:", data.pendingStock);
         setPendingStock({
           ...data.pendingStock,
           conversationId: data.conversationId,
           userMessage: userMessage,
         });
         setShowStockConfirmation(true);
-        console.log("[CONFIRMATION] showStockConfirmation set to true");
+        // Return a brief acknowledgment — the confirmation card handles the details
+        return `I detected a stock update for ${data.pendingStock.itemName}. Please confirm below.`;
       }
 
       return data.reply;
@@ -216,9 +203,6 @@ const SokoAssistant = () => {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, aiResponse]);
-
-      // Automatically speak the AI response
-      speakWithBrowserTTS(aiResponseText);
     } catch (error) {
       console.error("[SEND] Error:", error);
       const errorResponse = {
@@ -374,201 +358,6 @@ const SokoAssistant = () => {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const stopAudioPlayback = () => {
-    if (activeAudioRef.current) {
-      activeAudioRef.current.pause();
-      activeAudioRef.current = null;
-    }
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
-    setIsSpeaking(false);
-  };
-
-  const detectSpeechLanguage = (text) => {
-    // Enhanced Swahili detection with more common words
-    const swahiliPattern =
-      /\b(nimeuza|nilinunua|leo|shilingi|pesa|habari|asante|karibu|sawa|je|nipe|mimi|wewe|nataka|kuja|kwenda|chukua|lipa|deni|mkopo|bidhaa|soko|bei|ngapi|shamba|mazao|nyanya|vitunguu|sukari|unga|mahindi|nazi|mtama|kunde|maharage)\b/i;
-    return swahiliPattern.test(text) ? "sw-KE" : "en-US";
-  };
-
-  const speakWithBrowserTTS = (text) => {
-    if (!("speechSynthesis" in window)) {
-      return;
-    }
-
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-
-    // Prioritize Kiswahili but detect language
-    const detectedLang = detectSpeechLanguage(text);
-    utterance.lang = detectedLang;
-
-    // Find an African male voice
-    const voices = window.speechSynthesis.getVoices();
-
-    // Log available voices for debugging
-    console.log(
-      "[TTS] Available voices:",
-      voices.map((v) => `${v.name} (${v.lang})`).join(", "),
-    );
-
-    // African locale codes to prioritize
-    const africanLocales = [
-      "sw",
-      "sw-KE",
-      "sw-TZ", // Swahili
-      "en-KE",
-      "en-NG",
-      "en-ZA", // African English variants
-      "en-GH",
-      "en-TZ",
-      "en-UG", // More African English
-      "zu",
-      "zu-ZA", // Zulu
-      "af",
-      "af-ZA", // Afrikaans
-      "yo", // Yoruba
-      "ha", // Hausa
-    ];
-
-    const femaleKeywords = [
-      "female",
-      "woman",
-      "girl",
-      "zira",
-      "hazel",
-      "susan",
-      "samantha",
-      "karen",
-      "fiona",
-      "moira",
-      "tessa",
-      "victoria",
-      "grandma",
-      "alice",
-      "catherine",
-      "ellen",
-      "jenny",
-      "sarah",
-      "emma",
-      "aria",
-      "nicky",
-      "emily",
-    ];
-
-    const isFemale = (voice) => {
-      const name = voice.name.toLowerCase();
-      return femaleKeywords.some((kw) => name.includes(kw));
-    };
-
-    const isAfricanLocale = (lang) => {
-      return africanLocales.some((loc) => lang.startsWith(loc) || lang === loc);
-    };
-
-    let selectedVoice = null;
-
-    // Priority 1: Swahili voice (non-female)
-    selectedVoice = voices.find((v) => v.lang.startsWith("sw") && !isFemale(v));
-    // Priority 2: Any Swahili voice
-    if (!selectedVoice)
-      selectedVoice = voices.find((v) => v.lang.startsWith("sw"));
-    // Priority 3: African English male voice (en-KE, en-NG, en-ZA, etc.)
-    if (!selectedVoice)
-      selectedVoice = voices.find(
-        (v) =>
-          isAfricanLocale(v.lang) && v.lang.startsWith("en") && !isFemale(v),
-      );
-    // Priority 4: Any African locale voice
-    if (!selectedVoice)
-      selectedVoice = voices.find(
-        (v) => isAfricanLocale(v.lang) && !isFemale(v),
-      );
-    // Priority 5: English (India/non-US/non-UK) male — closer accent
-    if (!selectedVoice)
-      selectedVoice = voices.find(
-        (v) =>
-          v.lang.startsWith("en") &&
-          !v.lang.includes("US") &&
-          !v.lang.includes("GB") &&
-          !isFemale(v),
-      );
-    // Priority 6: Any non-female English voice
-    if (!selectedVoice)
-      selectedVoice = voices.find(
-        (v) => v.lang.startsWith("en") && !isFemale(v),
-      );
-    // Priority 7: Any English voice at all
-    if (!selectedVoice)
-      selectedVoice = voices.find((v) => v.lang.startsWith("en"));
-
-    if (selectedVoice) {
-      utterance.voice = selectedVoice;
-      console.log(
-        "[TTS] Selected voice:",
-        selectedVoice.name,
-        selectedVoice.lang,
-      );
-    }
-
-    utterance.rate = 0.88; // Slightly slower for natural African cadence
-    utterance.pitch = 0.75; // Lower pitch for deep male voice
-    utterance.volume = 1.0;
-
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-
-    setIsSpeaking(true);
-    window.speechSynthesis.speak(utterance);
-  };
-
-  // TTS playback function - currently unused but available for future use
-  const _playAssistantResponse = async (text) => {
-    stopAudioPlayback();
-
-    try {
-      const token = getValidToken();
-      const ttsResponse = await fetch(`${API_BASE}/chat/tts`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          text,
-          voice: "alloy",
-        }),
-      });
-
-      if (!ttsResponse.ok) {
-        speakWithBrowserTTS(text);
-        return;
-      }
-
-      const audioBlob = await ttsResponse.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-      activeAudioRef.current = audio;
-
-      setIsSpeaking(true);
-      audio.onended = () => {
-        setIsSpeaking(false);
-        URL.revokeObjectURL(audioUrl);
-        activeAudioRef.current = null;
-      };
-      audio.onerror = () => {
-        setIsSpeaking(false);
-        URL.revokeObjectURL(audioUrl);
-        activeAudioRef.current = null;
-        speakWithBrowserTTS(text);
-      };
-
-      await audio.play();
-    } catch {
-      speakWithBrowserTTS(text);
-    }
-  };
-
   const startVoiceRecording = async () => {
     if (isRecording) return;
 
@@ -581,10 +370,6 @@ const SokoAssistant = () => {
         "Speech recognition is not supported in your browser. Please use Chrome, Brave, Edge, or Safari.",
       );
       return;
-    }
-
-    if (isSpeaking) {
-      stopAudioPlayback();
     }
 
     try {
@@ -729,9 +514,6 @@ const SokoAssistant = () => {
   };
 
   const handleVoiceButton = () => {
-    if (isSpeaking) {
-      stopAudioPlayback();
-    }
     if (isRecording) {
       stopVoiceRecording();
     } else {
@@ -883,10 +665,10 @@ const SokoAssistant = () => {
                     </p>
                   </div>
                 )}
-                {!isRecording && (isLoading || isSpeaking) && (
+                {!isRecording && isLoading && (
                   <div className="text-center mb-3">
                     <p className="text-blue-400 text-sm font-medium">
-                      {isSpeaking ? "Speaking..." : "Thinking..."}
+                      Thinking...
                     </p>
                   </div>
                 )}
@@ -901,24 +683,6 @@ const SokoAssistant = () => {
                       className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 hover:border-gray-400 dark:hover:border-slate-600 rounded-xl px-5 sm:px-6 py-3.5 sm:py-4 text-sm sm:text-base text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 dark:focus:border-white transition"
                     />
                   </div>
-
-                  {/* Stop Speaking Button */}
-                  {isSpeaking && (
-                    <button
-                      onClick={stopAudioPlayback}
-                      className="p-3 sm:p-4 border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-xl text-red-600 dark:text-red-400 transition flex items-center justify-center shrink-0"
-                      title="Stop speaking"
-                    >
-                      <svg
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
-                      >
-                        <path d="M6 6h12v12H6z" />
-                      </svg>
-                    </button>
-                  )}
 
                   {/* Voice Button */}
                   <button

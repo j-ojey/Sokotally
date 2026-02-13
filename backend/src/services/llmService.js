@@ -40,7 +40,12 @@ export async function getLLMResponse(
     }
   } catch (error) {
     console.error("LLM Error:", error);
-    return getPlaceholderResponse(userMessage);
+    // Return the actual error message instead of hiding it
+    return {
+      reply: `Sorry, I'm having trouble right now. Error: ${error.message || "Unknown error"}. Please try again.`,
+      model: provider,
+      tokensUsed: 0,
+    };
   }
 }
 
