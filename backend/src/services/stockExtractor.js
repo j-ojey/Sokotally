@@ -228,12 +228,26 @@ export async function classifyMessage(message) {
   const transactionIndicators = [
     /sold/i,
     /nimeuza/i,
+    /niliuza/i,
+    /uza\b/i,
+    /mauzo/i,
     /sale/i,
     /paid/i,
+    /lipa/i,
+    /nililipia/i,
+    /nimelipa/i,
     /expense/i,
-    /debt/i,
-    /loan/i,
+    /matumizi/i,
     /gharama/i,
+    /debt/i,
+    /deni/i,
+    /loan/i,
+    /mkopo/i,
+    /anadai/i,
+    /nadai/i,
+    /wadeni/i,
+    /spent/i,
+    /owe/i,
   ];
 
   // Query indicators

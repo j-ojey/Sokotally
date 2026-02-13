@@ -74,6 +74,8 @@ ONLY RETURN JSON, NOTHING ELSE.`;
  * Validate and normalize extracted data
  */
 function validateAndNormalize(data) {
+  // Preserve numeric confidence from LLM, default to 0.9 for valid extractions
+  const rawConf = parseFloat(data.confidence);
   const normalized = {
     transactionType: data.transactionType || "sale",
     items: [],
@@ -82,7 +84,7 @@ function validateAndNormalize(data) {
     date: data.date || null,
     notes: data.notes || null,
     paymentStatus: data.paymentStatus || null,
-    confidence: "high",
+    confidence: !isNaN(rawConf) ? rawConf : 0.9,
   };
 
   // Normalize items
@@ -106,7 +108,7 @@ function validateAndNormalize(data) {
         totalPrice: normalized.totalAmount,
       },
     ];
-    normalized.confidence = "low";
+    normalized.confidence = 0.4;
   }
 
   return normalized;
@@ -151,25 +153,48 @@ function fallbackExtraction(text) {
   if (
     lowerText.includes("bought") ||
     lowerText.includes("purchase") ||
-    lowerText.includes("nilinunua")
+    lowerText.includes("nilinunua") ||
+    lowerText.includes("nimenunua") ||
+    lowerText.includes("nunua") ||
+    lowerText.includes("numenua")
   ) {
     transactionType = "purchase";
   } else if (
     lowerText.includes("expense") ||
     lowerText.includes("spent") ||
-    lowerText.includes("matumizi")
+    lowerText.includes("matumizi") ||
+    lowerText.includes("gharama") ||
+    lowerText.includes("nililipia") ||
+    lowerText.includes("nimelipa")
   ) {
     transactionType = "expense";
   } else if (
     lowerText.includes("debt") ||
     lowerText.includes("owe") ||
-    lowerText.includes("deni")
+    lowerText.includes("deni") ||
+    lowerText.includes("anadai") ||
+    lowerText.includes("nadai") ||
+    lowerText.includes("wadeni")
   ) {
     transactionType = "debt";
+  } else if (
+    lowerText.includes("loan") ||
+    lowerText.includes("mkopo")
+  ) {
+    transactionType = "loan";
+  } else if (
+    lowerText.includes("sold") ||
+    lowerText.includes("sale") ||
+    lowerText.includes("nimeuza") ||
+    lowerText.includes("niliuza") ||
+    lowerText.includes("uza") ||
+    lowerText.includes("mauzo")
+  ) {
+    transactionType = "sale";
   }
 
-  // Extract amounts
-  const amountRegex = /(?:ksh|kes|shilingi)?\s*(\d+(?:,\d{3})*(?:\.\d{2})?)/gi;
+  // Extract amounts (including Swahili patterns like "kwa 500 bob", "shilingi 1000")
+  const amountRegex = /(?:ksh|kes|shilingi|bob)?\s*(\d+(?:,\d{3})*(?:\.\d{2})?)\s*(?:bob|shillings?|shilingi|ksh|kes)?/gi;
   const amounts = [];
   let match;
   while ((match = amountRegex.exec(text)) !== null) {

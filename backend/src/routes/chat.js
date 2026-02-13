@@ -305,16 +305,18 @@ Use this data to provide accurate, helpful answers about the business performanc
       .lean();
 
     // Use compact conversational prompt to save tokens
+    // Detect user language for prompt reinforcement
+    const swahiliWords = /\b(habari|asante|karibu|ndio|hapana|sawa|nimeuza|niliuza|nilinunua|nimenunua|nunua|uza|deni|mkopo|gharama|matumizi|lipa|nimelipa|bei|shilingi|ksh|duka|bidhaa|mauzo|faida|nadai|anadai|wadeni|nililipia|stoki|nimepata)\b/i;
+    const userSpeaksSwahili = swahiliWords.test(userMessage);
+
     const conversationalPrompt = `You are SokoTally, a friendly AI assistant for small shop owners in Kenya.
 
-IMPORTANT — LANGUAGE RULE (follow strictly):
-- If the user writes in Swahili, you MUST reply entirely in Swahili.
-- If the user writes in English, reply in English.
-- If the user mixes both, match their style.
+LANGUAGE RULE (MUST follow — this is the #1 priority):
+${userSpeaksSwahili ? '- The user is writing in Swahili. You MUST reply ENTIRELY in Swahili. Do NOT use English at all.' : '- Reply in the same language the user uses. If English, reply in English. If Swahili, reply in Swahili. If mixed, match their style.'}
 
 RULES:
 - Be brief, friendly, conversational
-- When a user reports a sale/expense/purchase, just briefly acknowledge it (e.g. "Got it!" / "Sawa!"). A confirmation card appears automatically — do NOT ask them to confirm.
+- When a user reports a sale/expense/purchase/debt, just briefly acknowledge it (e.g. "Got it!" / "Sawa!"). A confirmation card appears automatically — do NOT ask them to confirm.
 - Do NOT list past transactions unless specifically asked
 - When asked about business data, use the real numbers below
 - Keep responses under 3 sentences for simple messages
@@ -373,19 +375,45 @@ RULES:
 
     // Check if transaction was detected - but DON'T save yet, wait for user confirmation
     let pendingTransaction = null;
+    // Normalize confidence to a number (fallback returns string like "high")
+    const rawConf = extractedData.confidence;
+    const numericConfidence = typeof rawConf === 'number' ? rawConf : (rawConf === 'high' ? 0.9 : rawConf === 'medium' ? 0.7 : rawConf === 'low' ? 0.4 : 0);
     const hasStrongTransactionIntent =
       extractedData.transactionType &&
       extractedData.totalAmount > 0 &&
-      (extractedData.confidence > 0.5 || // Lower threshold for better detection
-        userMessage.toLowerCase().includes("sold") ||
-        userMessage.toLowerCase().includes("bought") ||
-        userMessage.toLowerCase().includes("nimeuza") ||
-        userMessage.toLowerCase().includes("nilinunua") ||
-        userMessage.toLowerCase().includes("uza") ||
-        userMessage.toLowerCase().includes("nunua") ||
-        userMessage.toLowerCase().includes("paid") ||
-        userMessage.toLowerCase().includes("lipa") ||
-        userMessage.toLowerCase().includes("received"));
+      (numericConfidence > 0.4 ||
+        // English keywords
+        lowerMessage.includes("sold") ||
+        lowerMessage.includes("bought") ||
+        lowerMessage.includes("paid") ||
+        lowerMessage.includes("received") ||
+        lowerMessage.includes("expense") ||
+        lowerMessage.includes("spent") ||
+        lowerMessage.includes("debt") ||
+        lowerMessage.includes("loan") ||
+        lowerMessage.includes("owe") ||
+        // Swahili keywords — sales
+        lowerMessage.includes("nimeuza") ||
+        lowerMessage.includes("niliuza") ||
+        lowerMessage.includes("uza") ||
+        lowerMessage.includes("mauzo") ||
+        // Swahili keywords — purchases
+        lowerMessage.includes("nilinunua") ||
+        lowerMessage.includes("nimenunua") ||
+        lowerMessage.includes("nunua") ||
+        lowerMessage.includes("numenua") ||
+        // Swahili keywords — expenses
+        lowerMessage.includes("gharama") ||
+        lowerMessage.includes("matumizi") ||
+        lowerMessage.includes("nililipia") ||
+        lowerMessage.includes("nimelipa") ||
+        lowerMessage.includes("lipa") ||
+        // Swahili keywords — debts/loans
+        lowerMessage.includes("deni") ||
+        lowerMessage.includes("mkopo") ||
+        lowerMessage.includes("anadai") ||
+        lowerMessage.includes("nadai") ||
+        lowerMessage.includes("wadeni"));
 
     if (hasStrongTransactionIntent) {
       // Prepare transaction data but DON'T save yet
@@ -785,16 +813,40 @@ router.post(
 
       // Process transaction if data was extracted
       let pendingTransaction = null;
+      const rawConfV = extractedData.confidence;
+      const numericConfV = typeof rawConfV === 'number' ? rawConfV : (rawConfV === 'high' ? 0.9 : rawConfV === 'medium' ? 0.7 : rawConfV === 'low' ? 0.4 : 0);
+      const lowerTxt = transcribedText.toLowerCase();
       const hasStrongTransactionIntent =
         extractedData.transactionType &&
         extractedData.totalAmount > 0 &&
-        (extractedData.confidence > 0.5 ||
-          transcribedText.toLowerCase().includes("sold") ||
-          transcribedText.toLowerCase().includes("bought") ||
-          transcribedText.toLowerCase().includes("nimeuza") ||
-          transcribedText.toLowerCase().includes("nilinunua") ||
-          transcribedText.toLowerCase().includes("paid") ||
-          transcribedText.toLowerCase().includes("lipa"));
+        (numericConfV > 0.4 ||
+          lowerTxt.includes("sold") ||
+          lowerTxt.includes("bought") ||
+          lowerTxt.includes("paid") ||
+          lowerTxt.includes("received") ||
+          lowerTxt.includes("expense") ||
+          lowerTxt.includes("spent") ||
+          lowerTxt.includes("debt") ||
+          lowerTxt.includes("loan") ||
+          lowerTxt.includes("owe") ||
+          lowerTxt.includes("nimeuza") ||
+          lowerTxt.includes("niliuza") ||
+          lowerTxt.includes("uza") ||
+          lowerTxt.includes("mauzo") ||
+          lowerTxt.includes("nilinunua") ||
+          lowerTxt.includes("nimenunua") ||
+          lowerTxt.includes("nunua") ||
+          lowerTxt.includes("numenua") ||
+          lowerTxt.includes("gharama") ||
+          lowerTxt.includes("matumizi") ||
+          lowerTxt.includes("nililipia") ||
+          lowerTxt.includes("nimelipa") ||
+          lowerTxt.includes("lipa") ||
+          lowerTxt.includes("deni") ||
+          lowerTxt.includes("mkopo") ||
+          lowerTxt.includes("anadai") ||
+          lowerTxt.includes("nadai") ||
+          lowerTxt.includes("wadeni"));
 
       if (hasStrongTransactionIntent) {
         // Prepare transaction data but DON'T save yet - wait for user confirmation
@@ -815,16 +867,17 @@ router.post(
       }
 
       // Generate AI response using compact prompt
+      const swWordsV = /\b(habari|asante|karibu|ndio|hapana|sawa|nimeuza|niliuza|nilinunua|nimenunua|nunua|uza|deni|mkopo|gharama|matumizi|lipa|nimelipa|bei|shilingi|ksh|duka|bidhaa|mauzo|faida|nadai|anadai|wadeni|nililipia|stoki|nimepata)\b/i;
+      const userSpeaksSwV = swWordsV.test(transcribedText);
+
       const conversationalPrompt = `You are SokoTally, a friendly AI assistant for small shop owners in Kenya.
 
-IMPORTANT — LANGUAGE RULE (follow strictly):
-- If the user speaks in Swahili, you MUST reply entirely in Swahili.
-- If the user speaks in English, reply in English.
-- If the user mixes both, match their style.
+LANGUAGE RULE (MUST follow — this is the #1 priority):
+${userSpeaksSwV ? '- The user is speaking in Swahili. You MUST reply ENTIRELY in Swahili. Do NOT use English at all.' : '- Reply in the same language the user uses. If English, reply in English. If Swahili, reply in Swahili. If mixed, match their style.'}
 
 RULES:
 - Be brief, friendly, conversational
-- When a user reports a sale/expense/purchase, just briefly acknowledge it. A confirmation card appears automatically — do NOT ask them to confirm.
+- When a user reports a sale/expense/purchase/debt, just briefly acknowledge it. A confirmation card appears automatically — do NOT ask them to confirm.
 - Do NOT list past transactions unless specifically asked
 - Keep responses under 3 sentences for simple messages
 - You can chat about any topic naturally`;
